@@ -1,0 +1,359 @@
+[
+  {
+    "id": "u7-q01",
+    "unit": 7,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank to finish this sentence about tuples.",
+    "blank": "A tuple is immutable, which means that after it is created its items can never be ___.",
+    "accepted": ["changed", "modified", "altered", "edited", "updated", "replaced", "reassigned"],
+    "explanation": "Immutable means 'not changeable'. Once a tuple like (1, 2, 3) is built, no item inside it can be replaced, added or removed - even trying t[0] = 9 gives a TypeError. Lists are the mutable ones, so you can keep editing them.",
+    "analogy": "Think of a tuple as a chocolate box sealed at the factory: you can look at what is inside and pass the box to a friend, but you can never swap a chocolate once it is packed.",
+    "mini": {
+      "prompt": "Which of these CAN be changed after it has been created?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "The list [1, 2, 3]" },
+        { "id": "b", "text": "The tuple (1, 2, 3)" },
+        { "id": "c", "text": "Both of them are fixed forever" },
+        { "id": "d", "text": "Neither of them can ever be used again" }
+      ],
+      "answer": "a",
+      "explanation": "Lists are mutable, so their items can be replaced any time. Tuples are immutable, so once they are created they stay exactly as they are."
+    },
+    "hint": "Split the word into 'im-' (not) plus 'mutable' (changeable): what does that say you can never do to a tuple's items?",
+    "tags": ["tuples", "immutability", "mutable-vs-immutable"]
+  },
+  {
+    "id": "u7-q02",
+    "unit": 7,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Which of these lines creates a ONE-element tuple containing the number 5?",
+    "options": [
+      { "id": "a", "text": "(5) - round brackets, no comma" },
+      { "id": "b", "text": "(5,) - round brackets with a trailing comma" },
+      { "id": "c", "text": "[5] - square brackets" },
+      { "id": "d", "text": "{5} - curly brackets" }
+    ],
+    "answer": ["b"],
+    "explanation": "(5) is just the number 5 wrapped in brackets for grouping, so its type is int, not tuple. A single item needs the trailing comma - (5,) - to tell Python this really is a tuple. Square brackets make a list, and bare curly brackets make a set.",
+    "analogy": "The trailing comma is a name tag for a single guest: without it the guest walks in as a plain number, with it the guest is officially on the tuple's list.",
+    "mini": {
+      "prompt": "What is the type of the value written as (5)?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "int" },
+        { "id": "b", "text": "tuple" },
+        { "id": "c", "text": "list" },
+        { "id": "d", "text": "str" }
+      ],
+      "answer": "a",
+      "explanation": "Brackets on their own only group a value, they do not build a tuple. That is why (5) is the integer 5, while (5,) is the one-item tuple."
+    },
+    "hint": "Look at each option and ask what type it produces - which one actually contains a comma AFTER its item?",
+    "tags": ["tuples", "syntax", "one-element-tuple"]
+  },
+  {
+    "id": "u7-q03",
+    "unit": 7,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "a = 2\nb = 5\na, b = b, a\nprint(a, b)",
+    "options": [
+      { "id": "a", "text": "5 2" },
+      { "id": "b", "text": "2 5" },
+      { "id": "c", "text": "5, 2" },
+      { "id": "d", "text": "TypeError: cannot assign to a tuple" }
+    ],
+    "answer": ["a"],
+    "explanation": "The right-hand side b, a quietly builds the tuple (5, 2) first, and then Python unpacks it: 5 goes into a and 2 goes into b. Because both new values are ready before either name changes, the two variables swap in one single line.",
+    "analogy": "It is like two friends swapping seats: everyone stands up at the same moment and sits back down in the other chair, so nobody ends up fighting over the same seat.",
+    "mini": {
+      "prompt": "On the right-hand side of that assignment, what does the expression b, a produce?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "The tuple (5, 2)" },
+        { "id": "b", "text": "The tuple (2, 5)" },
+        { "id": "c", "text": "A list [5, 2]" },
+        { "id": "d", "text": "Two separate answers printed on different lines" }
+      ],
+      "answer": "a",
+      "explanation": "Writing two names separated by a comma builds one tuple from the values on the right, in that order: b comes first, so the tuple starts with 5."
+    },
+    "hint": "What does Python build on the right-hand side of the = before it unpacks anything into the names on the left?",
+    "tags": ["tuples", "unpacking", "swapping"]
+  },
+  {
+    "id": "u7-q04",
+    "unit": 7,
+    "difficulty": "medium",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "def hi_lo(nums):\n    return min(nums), max(nums)\n\nfirst, second = hi_lo([4, 9, 1])\nprint(first, second)",
+    "options": [
+      { "id": "a", "text": "1 9" },
+      { "id": "b", "text": "(1, 9)" },
+      { "id": "c", "text": "1, 9" },
+      { "id": "d", "text": "4 1" }
+    ],
+    "answer": ["a"],
+    "explanation": "The return statement with a comma returns ONE tuple, (1, 9), even though two values were written. The line first, second = ... unpacks that tuple so first becomes 1 and second becomes 9, and print(first, second) shows the two values with a single space between them, not in brackets.",
+    "analogy": "Think of the function handing you a small two-pocket tool pouch: you unpack it by taking one tool into each hand, and then you show the tools - not the pouch they arrived in.",
+    "mini": {
+      "prompt": "What does hi_lo([4, 9, 1]) return by itself, before any unpacking happens?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "The tuple (1, 9)" },
+        { "id": "b", "text": "The number 1" },
+        { "id": "c", "text": "The list [1, 9]" },
+        { "id": "d", "text": "Nothing, because it is just a function" }
+      ],
+      "answer": "a",
+      "explanation": "A comma between return values quietly makes a tuple, so the function hands back (1, 9). Unpacking it into two names is a separate step that happens in the caller."
+    },
+    "hint": "A return with a comma produces just one object. What kind of object is it, and what does print(first, second) actually display?",
+    "tags": ["tuples", "return-values", "unpacking", "functions"]
+  },
+  {
+    "id": "u7-q05",
+    "unit": 7,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Given `student = {'name': 'Ravi', 'marks': {'py': 88, 'math': 91}}`, what do you get from `student['marks']['py']`?",
+    "options": [
+      { "id": "a", "text": "88" },
+      { "id": "b", "text": "{'py': 88, 'math': 91}" },
+      { "id": "c", "text": "KeyError: 'py'" },
+      { "id": "d", "text": "'marks'" }
+    ],
+    "answer": ["a"],
+    "explanation": "The first [ ] looks up 'marks' in the outer dictionary and hands back the INNER dictionary {'py': 88, 'math': 91}. The second [ ] then looks up 'py' inside that inner dictionary, giving 88. Each pair of square brackets digs exactly one level deeper.",
+    "analogy": "It is like opening a drawer and then opening a small box inside that drawer: the first label picks the box, the second label picks the item you actually want.",
+    "mini": {
+      "prompt": "How do you add the key 'age' with the value 18 to a dictionary called person?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "person['age'] = 18" },
+        { "id": "b", "text": "person.add('age', 18)" },
+        { "id": "c", "text": "person += age: 18" },
+        { "id": "d", "text": "person[age] = 18" }
+      ],
+      "answer": "a",
+      "explanation": "Square-bracket ASSIGNMENT creates the key when it is not there yet and updates it when it already exists. Dictionaries have no add() method, and the key name must be in quotes."
+    },
+    "hint": "Count the square brackets: two lookups happen in a row, and each one returns a value you can search again.",
+    "tags": ["dictionaries", "nested-dicts", "add-key"]
+  },
+  {
+    "id": "u7-q06",
+    "unit": 7,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "This code crashes when it runs. What is the bug?",
+    "code": "scores = {'math': 90, 'sci': 85}\ntotal = scores['eng']\nprint(total)",
+    "options": [
+      { "id": "a", "text": "KeyError: 'eng' - the key 'eng' was never added, and reading a missing key with [ ] raises an error" },
+      { "id": "b", "text": "TypeError - dictionary keys must be numbers, not strings" },
+      { "id": "c", "text": "No bug at all - it runs and prints 0" },
+      { "id": "d", "text": "IndexError - the list index is out of range" }
+    ],
+    "answer": ["a"],
+    "explanation": "Square brackets are for keys you are sure exist. Because 'eng' was never put into scores, Python raises KeyError instead of quietly handing back a value. To get a safe fallback you write scores.get('eng', 0), which returns 0 and lets the program continue.",
+    "analogy": "It is like asking a shopkeeper for a product they do not stock: you do not get handed an empty bag, you get told plainly that the item does not exist.",
+    "mini": {
+      "prompt": "Which line would print 0 instead of crashing?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "print(scores.get('eng', 0))" },
+        { "id": "b", "text": "print(scores['eng'])" },
+        { "id": "c", "text": "print(scores.eng)" },
+        { "id": "d", "text": "print(scores['eng', 0])" }
+      ],
+      "answer": "a",
+      "explanation": "The get() method accepts a default value to fall back on when the key is missing, so it returns 0 instead of raising KeyError. The square-bracket version has no default to fall back on."
+    },
+    "hint": "Is that key definitely in the dictionary? Which method is kind enough to return a default value instead of raising an error?",
+    "tags": ["dictionaries", "keyerror", "get"]
+  },
+  {
+    "id": "u7-q07",
+    "unit": 7,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each dictionary expression with what it does.",
+    "pairs": [
+      { "left": "len(d)", "right": "counts how many key-value pairs are in d" },
+      { "left": "d.keys()", "right": "gives all the keys of d" },
+      { "left": "d.values()", "right": "gives all the values stored in d" },
+      { "left": "d.items()", "right": "gives each key together with its value" },
+      { "left": "d.get('k', 0)", "right": "returns the value for 'k', or 0 if 'k' is missing" },
+      { "left": "del d['k']", "right": "removes the key 'k' and its value from d" },
+      { "left": "d['k'] = 9", "right": "adds 'k' when it is new, otherwise updates its value" }
+    ],
+    "explanation": "len() counts the pairs, while keys() and values() hand you the two halves separately and items() hands them over together - that is the one you usually want inside a loop. The get() version never crashes on a missing key because you gave it a default, del deletes a pair completely, and square-bracket assignment adds or updates a value.",
+    "analogy": "A dictionary is like a class register: len() tells you how many students are enrolled, keys() lists their roll numbers, values() lists their names, items() shows roll number and name side by side, and del erases a student from the register.",
+    "mini": {
+      "prompt": "Fill in the blank: to loop over both the keys and the values of a dictionary d, use d.___().",
+      "type": "fill-blank",
+      "accepted": ["items", "items()"],
+      "explanation": "d.items() returns key-value pairs, which you can unpack straight into a loop with for k, v in d.items()."
+    },
+    "hint": "Think of a labelled box: which things can you ask for on their own - just the labels, just what is inside, or both together?",
+    "tags": ["dictionaries", "methods", "loops", "get", "del"]
+  },
+  {
+    "id": "u7-q08",
+    "unit": 7,
+    "difficulty": "easy",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each tuple-related expression with what it means.",
+    "pairs": [
+      { "left": "t = (5,)", "right": "a tuple that holds exactly one item" },
+      { "left": "a, b = 1, 2", "right": "unpacking: 1 goes into a and 2 goes into b" },
+      { "left": "tuple([4, 5])", "right": "turns the list [4, 5] into the tuple (4, 5)" },
+      { "left": "3 in (1, 2, 3)", "right": "asks whether 3 is one of the items" },
+      { "left": "t[0] = 9", "right": "would raise a TypeError - tuples never change" }
+    ],
+    "explanation": "The trailing comma is what makes (5,) a one-item tuple, and unpacking splits a tuple's values into separate names in one step. tuple() converts other sequences into a tuple, the in keyword checks membership, and any attempt to assign into a tuple fails because tuples are immutable.",
+    "analogy": "A tuple is a sealed pencil case: you can check whether a pen is inside (in), count what is in there, and unpack the pens onto your desk, but you can never tape a new pen into the sealed case.",
+    "mini": {
+      "prompt": "Which of these is a tuple?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "(1, 2, 3)" },
+        { "id": "b", "text": "[1, 2, 3]" },
+        { "id": "c", "text": "{1, 2}" },
+        { "id": "d", "text": "{1: 2}" }
+      ],
+      "answer": "a",
+      "explanation": "Round brackets with commas make a tuple. Square brackets make a list, bare curly brackets make a set, and curly brackets with colons make a dictionary."
+    },
+    "hint": "One of these lines would actually crash - which one tries to write into something that is sealed shut?",
+    "tags": ["tuples", "syntax", "unpacking", "in-operator"]
+  },
+  {
+    "id": "u7-q09",
+    "unit": 7,
+    "difficulty": "medium",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank to finish this sentence about names and copies.",
+    "blank": "If a and b are dictionaries and you write b = a, then b is only an ___ of a: both names point to the same data.",
+    "accepted": ["alias", "an alias", "alias reference", "aliasing"],
+    "explanation": "The line b = a does not copy anything - it simply pins a second name onto the SAME dictionary object. Change something through either name and both names see the change, because there is only one dictionary in memory. To get an independent dictionary you need b = a.copy() (or dict(a)).",
+    "analogy": "It is like two name tags pinned to the SAME suitcase: whoever picks up that suitcase and swaps the clothes affects both tags, because there is really only one suitcase.",
+    "mini": {
+      "prompt": "Fill in the blank: to make an independent copy of the dictionary a instead, write b = a.___().",
+      "type": "fill-blank",
+      "accepted": ["copy", "copy()"],
+      "explanation": "The copy() method builds a brand-new dictionary with the same contents, so later changes to one stay separate from the other."
+    },
+    "hint": "The word begins with 'a'. Two names for one single object - like a nickname for the very same person.",
+    "tags": ["aliasing", "copying", "dictionaries"]
+  },
+  {
+    "id": "u7-q10",
+    "unit": 7,
+    "difficulty": "hard",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "The programmer expected profile to stay unchanged after this code runs. What went wrong?",
+    "code": "profile = {'name': 'Anu'}\nsame = profile\nsame['age'] = 20\nprint(profile)",
+    "options": [
+      { "id": "a", "text": "same = profile only makes a second name for the same dictionary, so 'age' appears in profile too - use same = profile.copy()" },
+      { "id": "b", "text": "There is no bug: a second name always means a second, independent dictionary" },
+      { "id": "c", "text": "print(profile) will show {'name': 'Anu'} because 'age' was added only to same" },
+      { "id": "d", "text": "Dictionaries are immutable, so same['age'] = 20 raises a TypeError" }
+    ],
+    "answer": ["a"],
+    "explanation": "The line same = profile creates an alias, not a copy: same and profile are two labels stuck on ONE dictionary, so adding 'age' through either name changes that one object. Writing same = profile.copy() creates a second dictionary with the same contents, and after that, changes to same leave profile completely alone.",
+    "analogy": "It is like two people sharing a single remote control: pressing a button on 'your' remote still changes the shared TV, whereas a copy would be a second remote paired with your own TV.",
+    "mini": {
+      "prompt": "If the code used same = profile.copy() instead, what does print(profile) show after same['age'] = 20?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "{'name': 'Anu'}" },
+        { "id": "b", "text": "{'name': 'Anu', 'age': 20}" },
+        { "id": "c", "text": "KeyError: 'age'" },
+        { "id": "d", "text": "The program crashes with a TypeError" }
+      ],
+      "answer": "a",
+      "explanation": "copy() builds a separate dictionary, so writing into same no longer touches profile. Only the original contents, {'name': 'Anu'}, remain in profile."
+    },
+    "hint": "How many dictionaries really exist in memory right after same = profile? How many exist after same = profile.copy()?",
+    "tags": ["aliasing", "copying", "spot-error", "dictionaries"]
+  },
+  {
+    "id": "u7-q11",
+    "unit": 7,
+    "difficulty": "medium",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Given `scores = {'math': 90, 'sci': 85}`, what does `k` hold in each round of `for k in scores:`?",
+    "options": [
+      { "id": "a", "text": "The keys: first 'math', then 'sci'" },
+      { "id": "b", "text": "The values: first 90, then 85" },
+      { "id": "c", "text": "The pairs: first ('math', 90), then ('sci', 85)" },
+      { "id": "d", "text": "Nothing - a dictionary cannot be looped over" }
+    ],
+    "answer": ["a"],
+    "explanation": "Looping straight over a dictionary walks through its KEYS, one at a time, in the order they were inserted. If you want the values you loop over scores.values(), and if you want both halves together you loop over scores.items().",
+    "analogy": "It is like taking classroom attendance: by default the teacher calls out only the roll numbers (the keys) - to hear each student's name too, she has to read the full register (items()).",
+    "mini": {
+      "prompt": "Which dictionary stores the value 5 at row 1, column 2 - a simple sparse matrix?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "d = {(1, 2): 5}" },
+        { "id": "b", "text": "d = {1: 5, 2: 5}" },
+        { "id": "c", "text": "d = {[1, 2]: 5}" },
+        { "id": "d", "text": "d = 5[1][2]" }
+      ],
+      "answer": "a",
+      "explanation": "A sparse matrix keeps only the non-zero cells, and a tuple key like (1, 2) names one position as (row, column) in a single entry. Option b would store two unrelated keys, and a list cannot be used as a dictionary key at all."
+    },
+    "hint": "Which value can hold two numbers together and still work as one single dictionary key?",
+    "tags": ["dictionaries", "loops", "sparse-matrix"]
+  },
+  {
+    "id": "u7-q12",
+    "unit": 7,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": true,
+    "prompt": "Boss question - it combines unpacking with dictionary lookup. What is the output?",
+    "code": "matrix = {(0, 1): 4, (2, 0): 7}\nr, c = (0, 1)\ncell = matrix.get((r, c), 0)\nprint(cell, matrix.get((1, 1), 0))",
+    "options": [
+      { "id": "a", "text": "4 0" },
+      { "id": "b", "text": "4 KeyError" },
+      { "id": "c", "text": "4 None" },
+      { "id": "d", "text": "(4, 0) 0" }
+    ],
+    "answer": ["a"],
+    "explanation": "The line r, c = (0, 1) unpacks the tuple so r is 0 and c is 1, and matrix.get((r, c), 0) rebuilds that same key (0, 1) to fetch the value 4. The key (1, 1) was never stored, so .get() returns the default 0 instead of raising KeyError, and print shows the two results separated by a space: 4 0.",
+    "analogy": "Imagine a theatre seating chart where only occupied seats are written down: asking for seat (0, 1) tells you who is booked there, while asking for the empty seat (1, 1) just hands you a blank - a zero - instead of setting off an alarm.",
+    "mini": {
+      "prompt": "What would matrix[(1, 1)] do - square brackets, no default given?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "Raise KeyError" },
+        { "id": "b", "text": "Return 0" },
+        { "id": "c", "text": "Return None" },
+        { "id": "d", "text": "Return 7" }
+      ],
+      "answer": "a",
+      "explanation": "Square-bracket lookups have no default to fall back on, so a key that is missing raises KeyError. That is exactly why the .get(key, default) method exists."
+    },
+    "hint": "Two steps: first work out what unpacking puts into r and c, then decide what .get() does when the key you ask for was never stored.",
+    "tags": ["tuples", "unpacking", "dictionaries", "get", "sparse-matrix", "boss"]
+  }
+]

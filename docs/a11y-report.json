@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-09-29T11:21:52.742Z",
+  "wcagTags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa"
+  ],
+  "failures": 0,
+  "warnings": 0,
+  "consoleErrors": [],
+  "findings": []
+}

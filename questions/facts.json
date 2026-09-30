@@ -1,0 +1,42 @@
+{
+  "bugs": [
+    "Bug of the Day: Python is not named after the snake - Guido van Rossum named it after Monty Python's Flying Circus, the comedy group. So never blame the reptile for your syntax error.",
+    "Bug of the Day: Naming your own file time.py (or any module name) can shadow Python's real module, so 'import time' starts loading YOUR file instead. Your code then fails in a very confusing way.",
+    "Bug of the Day: A classic off-by-one error happens because counting starts at 0, so range(5) gives 0, 1, 2, 3, 4 - beginners happily wait for the number 5 that never arrives.",
+    "Bug of the Day: == compares two values while = assigns one, so writing if x == 5 = 3 by habit can silently change your variable instead of checking it. Two tiny symbols, two completely different jobs.",
+    "Bug of the Day: In 1996 a rocket veered off course because a big number was squeezed into a smaller space and lost precision. Overflow errors were breaking things long before your Python homework did.",
+    "Bug of the Day: The Y2K worry was really an off-by-two-digits problem: years were stored as 99, and some systems turned the year 2000 back into 1900.",
+    "Bug of the Day: A missing colon, or a stray tab where spaces belong, can stop Python in its tracks. Whitespace is part of the language here, not decoration.",
+    "Bug of the Day: Heisenbugs are bugs that vanish the moment you look at them - printing a variable to debug it can change the timing that caused the problem in the first place.",
+    "Bug of the Day: One famous trading software glitch was caused by old, disabled code that was switched back on years later. Dead code can wake up and misbehave.",
+    "Bug of the Day: += and + are not twins for lists: x += [1] edits the original list, while x = x + [1] builds a brand-new one and leaves any alias pointing at the old data.",
+    "Bug of the Day: In real floating point math 0.1 + 0.2 prints as 0.30000000000000004, because computers store decimals in binary and simply cannot represent some numbers exactly.",
+    "Bug of the Day: Forgetting the brackets - writing print(len) instead of print(len(x)) - happily prints something like <built-in function len> and baffles everyone reading your output.",
+    "Bug of the Day: A default argument like def greet(name, tags=[]) remembers whatever you append to that list between calls, so the list quietly grows for every new call.",
+    "Bug of the Day: Copy-pasting a block of code and forgetting to change one variable is the classic beginner bug - the program runs perfectly and always uses the old value.",
+    "Bug of the Day: The very first software bug was famously a moth stuck inside a machine in 1947. The team literally taped the insect into their logbook as the first entry.",
+    "Bug of the Day: Typos inside a string, like 'maths' vs 'math', never raise any error at all - you just end up with a key that nothing else in the program will ever find."
+  ],
+  "didYouKnow": [
+    "Did you know? Typing import this prints the Zen of Python, a short poem of guiding principles like 'Simple is better than complex'. It was hidden in Python as an Easter egg by Tim Peters.",
+    "Did you know? Python is named after Monty Python's Flying Circus, the comedy group, and not after the snake at all.",
+    "Did you know? Underscores can separate digits for readability, so 1_000_000 is just one million - very handy when you print big counts.",
+    "Did you know? Dictionaries have kept the order of their keys since Python 3.7, so insertion order is now guaranteed rather than a lucky side effect.",
+    "Did you know? Tuples are a little faster and use less memory than lists, and because they cannot change they can be used as dictionary keys, while lists cannot.",
+    "Did you know? None is a singleton - there is only ever one None object in your whole program, which is why Python suggests comparing with is None.",
+    "Did you know? Strings are immutable, so a method like s.upper() builds a brand-new string instead of changing the old one. That is why you must save the result back.",
+    "Did you know? enumerate() hands you a counter as you loop, so for i, name in enumerate(names): starts counting at 0 with no extra bookkeeping.",
+    "Did you know? zip() stitches lists together, pairing the first items, then the second, and so on - perfect for looping over two lists at the same time.",
+    "Did you know? pass is a do-nothing statement that exists so you can write an empty block, like a function you have not finished yet, without a syntax error.",
+    "Did you know? Python uses indentation to define blocks, so the language itself forces your code to look neat - there are no curly braces you can forget.",
+    "Did you know? Duck typing means 'if it behaves like a duck, it is a duck' - Python cares more about what an object can do than about what type it claims to be.",
+    "Did you know? PEP 8 is Python's style guide, recommending things like snake_case for function names so everyone's code looks familiar to everyone else.",
+    "Did you know? Python 2 reached its end of life in 2020 and Python 3 has been the standard for years - some older tutorials still show print 'hi' without brackets.",
+    "Did you know? f-strings like f'{name} is {age}' arrived in Python 3.6 after years of debate about formatting, and they are now the favourite way to build text.",
+    "Did you know? The Global Interpreter Lock (GIL) means one Python process runs one thread at a time, which is why Python reaches for processes for heavy parallel work.",
+    "Did you know? The walrus operator := gets its name from the tusks it resembles, and it lets you assign and use a value in the same line. It arrived in Python 3.8.",
+    "Did you know? list.sort() sorts in place and returns None, so writing x = mylist.sort() empties x into None - a favourite beginner trap.",
+    "Did you know? Guido van Rossum started Python in the early 1990s as a holiday project, proving that even language legends code during their breaks.",
+    "Did you know? Python compiles your code to bytecode first and caches it in __pycache__ folders, which is why the second run of a script often starts faster."
+  ]
+}

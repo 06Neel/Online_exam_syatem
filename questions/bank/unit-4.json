@@ -1,0 +1,356 @@
+[
+  {
+    "id": "u4-q01",
+    "unit": 4,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "You have written the same 5-line block of score-printing code in three different places in your program. What is the best thing to do?",
+    "options": [
+      { "id": "a", "text": "Move the block into a function and call that function three times" },
+      { "id": "b", "text": "Copy it into a fourth place so no version ever goes missing" },
+      { "id": "c", "text": "Delete two copies and keep only the first one" },
+      { "id": "d", "text": "Write a long comment above each of the three copies" }
+    ],
+    "answer": ["a"],
+    "explanation": "Putting repeated code inside a def means there is only one copy in the whole program, so you fix it in one place and every call picks up the change. It also makes the main part of the program short enough to read at a glance.",
+    "analogy": "It is like saving your home address once in your phone's contacts instead of handwriting it on the back of every letter you send.",
+    "mini": {
+      "prompt": "What is the point of a parameter such as name in def greet(name)?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "the same function can be used with different names" },
+        { "id": "b", "text": "it prints the greeting automatically" },
+        { "id": "c", "text": "it makes the function run twice" },
+        { "id": "d", "text": "it is only there for decoration" }
+      ],
+      "answer": "a",
+      "explanation": "Parameters are placeholders, so one function can work with any value you hand to it instead of only the one value it was written for."
+    },
+    "hint": "Think about what happens the day you need to change one line inside all three copies.",
+    "tags": ["encapsulation", "functions"]
+  },
+  {
+    "id": "u4-q02",
+    "unit": 4,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "total = 0\nfor n in range(1, 6):\n    total = total + n\nprint(total)",
+    "options": [
+      { "id": "a", "text": "15" },
+      { "id": "b", "text": "10" },
+      { "id": "c", "text": "21" },
+      { "id": "d", "text": "1 2 3 4 5" }
+    ],
+    "answer": ["a"],
+    "explanation": "range(1, 6) hands out 1, 2, 3, 4, 5 and stops before 6, so the 6 is never added in. Adding the values it does produce gives 1 + 2 + 3 + 4 + 5 = 15, and that single number is what print shows at the end.",
+    "analogy": "Think of total as a piggy bank: each round drops one coin in, and the coin marked 6 never gets bought, so it never lands in the bank.",
+    "mini": {
+      "prompt": "Fill in the first number: range(3) produces ___, 1, 2",
+      "type": "fill-blank",
+      "accepted": ["0"],
+      "explanation": "range(3) starts at 0 and stops before 3, so the very first number it hands out is 0."
+    },
+    "hint": "Write out every value n takes on paper before you add anything up.",
+    "tags": ["for loop", "range", "accumulation"]
+  },
+  {
+    "id": "u4-q03",
+    "unit": 4,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank to finish this rule about where range() stops.",
+    "blank": "range(1, 5) produces the numbers 1, 2, 3, ___ and stops just before the 5.",
+    "accepted": ["4"],
+    "explanation": "range() never includes its second number, so the sequence always stops one short of it: 1, 2, 3, 4. That is why programmers say the end value is left out, or exclusive.",
+    "analogy": "It is like a lift that stops one floor early: press 5 and you step out on 4, because floor 5 is out of service today.",
+    "mini": {
+      "prompt": "How many different numbers does range(10) produce?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "10" },
+        { "id": "b", "text": "9" },
+        { "id": "c", "text": "11" },
+        { "id": "d", "text": "10, because it runs from 0 all the way to 10" }
+      ],
+      "answer": "a",
+      "explanation": "range(10) starts at 0 and stops before 10, giving 0 through 9, which is exactly ten numbers."
+    },
+    "hint": "Count from the first number up to - but never touching - the second number.",
+    "tags": ["range", "off-by-one"]
+  },
+  {
+    "id": "u4-q04",
+    "unit": 4,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "n = 3\nwhile n > 0:\n    print(n)\n    n = n - 1",
+    "options": [
+      { "id": "a", "text": "3\n2\n1\n0" },
+      { "id": "b", "text": "1\n2\n3" },
+      { "id": "c", "text": "3\n2\n1" },
+      { "id": "d", "text": "The program prints an error" }
+    ],
+    "answer": ["c"],
+    "explanation": "Each round prints the current value of n and then lowers it by 1: 3, then 2, then 1. After that n becomes 0, the test n > 0 turns False, and the loop stops - which is why 0 is never printed on a line of its own.",
+    "analogy": "It is like eating three cookies from a stack: take the top one each time, and when your hand is empty you stop - you do not eat the plate.",
+    "mini": {
+      "prompt": "If n started at 1 instead, how many lines would this code print?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "1 line" },
+        { "id": "b", "text": "0 lines" },
+        { "id": "c", "text": "2 lines" },
+        { "id": "d", "text": "It would never stop" }
+      ],
+      "answer": "a",
+      "explanation": "1 > 0 is True so it prints once, then n becomes 0 and the condition fails, ending the loop after a single line."
+    },
+    "hint": "Trace the value of n just before and just after every single round.",
+    "tags": ["while loop", "counting down"]
+  },
+  {
+    "id": "u4-q05",
+    "unit": 4,
+    "difficulty": "easy",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each Python loop word to what it does.",
+    "pairs": [
+      { "left": "for", "right": "repeats a set number of times, usually with range()" },
+      { "left": "while", "right": "repeats as long as its condition stays True" },
+      { "left": "break", "right": "leaves the loop immediately, skipping the rest" },
+      { "left": "continue", "right": "jumps to the next round, skipping what is left here" }
+    ],
+    "explanation": "A for loop is for rounds you can count in advance, a while loop repeats until something changes, and break and continue let you bend those rules from inside a running loop. Knowing which one a situation needs makes the rest of the code easy to choose.",
+    "analogy": "Think of for as ten press-ups you counted out loud, while as press-ups until the kitchen timer rings, break as stopping early, and continue as skipping just the one that hurts.",
+    "mini": {
+      "prompt": "Which word takes you out of the loop completely?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "break" },
+        { "id": "b", "text": "continue" },
+        { "id": "c", "text": "pass" },
+        { "id": "d", "text": "skip" }
+      ],
+      "answer": "a",
+      "explanation": "break ends the loop right away, while continue only skips the rest of the current round and the loop keeps going."
+    },
+    "hint": "Picture wanting to quit a routine early, versus wanting to skip just one step inside it.",
+    "tags": ["loop keywords", "break", "continue"]
+  },
+  {
+    "id": "u4-q06",
+    "unit": 4,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "This code is meant to count down from 3 and then stop, but it never ends. What is the real problem?",
+    "code": "n = 3\nwhile n > 0:\n    print(n)",
+    "options": [
+      { "id": "a", "text": "n is never changed inside the loop, so the condition never becomes False" },
+      { "id": "b", "text": "The condition should be n < 0 instead of n > 0" },
+      { "id": "c", "text": "print(n) should be written as print(n - 1)" },
+      { "id": "d", "text": "A while loop is missing a colon after the condition" }
+    ],
+    "answer": ["a"],
+    "explanation": "A while loop only stops when its condition turns False, and nothing in this loop ever changes n. Since n stays 3 forever, n > 0 stays True forever and the loop prints 3 without end. The colon after the condition is already there, so that is not the issue.",
+    "analogy": "It is like walking towards a horizon that drifts further away with every step - the moment you were waiting for simply never arrives.",
+    "mini": {
+      "prompt": "Which single line would make that countdown finish?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "n = n - 1" },
+        { "id": "b", "text": "n = 3" },
+        { "id": "c", "text": "print(n)" },
+        { "id": "d", "text": "n > 0" }
+      ],
+      "answer": "a",
+      "explanation": "Lowering n by one every round eventually makes n > 0 False, and that False is what ends the loop."
+    },
+    "hint": "Ask yourself what value changes between one round and the next.",
+    "tags": ["while loop", "infinite loop"]
+  },
+  {
+    "id": "u4-q07",
+    "unit": 4,
+    "difficulty": "medium",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "for i in range(3):\n    for j in range(2):\n        print(i, j)",
+    "options": [
+      { "id": "a", "text": "0 0\n0 1\n1 0\n1 1\n2 0\n2 1" },
+      { "id": "b", "text": "0 1\n0 0\n1 1\n1 0\n2 1\n2 0" },
+      { "id": "c", "text": "0 0\n1 0\n2 0" },
+      { "id": "d", "text": "6" }
+    ],
+    "answer": ["a"],
+    "explanation": "The outer loop picks i = 0 and then the inner loop runs all the way through with j = 0 and j = 1 before i moves on. So you get two lines for each of the three i values, six lines in total, and print separates the two numbers with a single space.",
+    "analogy": "It is like a school timetable: for every class, the outer loop, you visit each subject room, the inner loop, before the bell moves the whole class onward.",
+    "mini": {
+      "prompt": "How many lines does that nested loop code print in total?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "6" },
+        { "id": "b", "text": "3" },
+        { "id": "c", "text": "5" },
+        { "id": "d", "text": "9" }
+      ],
+      "answer": "a",
+      "explanation": "There are three values of i and the inner loop prints twice for each one, so 3 x 2 gives 6 printed lines."
+    },
+    "hint": "List every value of j before you move on to the next value of i.",
+    "tags": ["nested loop", "for loop", "tracing"]
+  },
+  {
+    "id": "u4-q08",
+    "unit": 4,
+    "difficulty": "medium",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank about leaving a loop before its normal end.",
+    "blank": "The ___ statement stops a loop immediately and jumps to the line after it.",
+    "accepted": ["break"],
+    "explanation": "break abandons the rest of the loop at once, which is handy once you have found what you were searching for and carrying on would be a waste of rounds. Everything after the loop carries on as usual.",
+    "analogy": "It is like finding the cereal you wanted on the first shelf - you stop pushing the trolley down the rest of the aisle and head to the checkout.",
+    "mini": {
+      "prompt": "Fill in the blank: ___ skips the rest of the current round and starts the next one.",
+      "type": "fill-blank",
+      "accepted": ["continue"],
+      "explanation": "continue jumps straight back to the loop test without running any lines left in the current round."
+    },
+    "hint": "Think of the word you would use when a routine is cut short on purpose.",
+    "tags": ["break", "loop control"]
+  },
+  {
+    "id": "u4-q09",
+    "unit": 4,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "This loop is supposed to print 1 to 5, but it stops at 4. What is the real bug?",
+    "code": "for i in range(1, 5):\n    print(i)",
+    "options": [
+      { "id": "a", "text": "range leaves out its second number, so the end must be 6" },
+      { "id": "b", "text": "The arguments are the wrong way round: it should be range(5, 1)" },
+      { "id": "c", "text": "print(i) needs to be indented one more space" },
+      { "id": "d", "text": "A for loop cannot print more than one line" }
+    ],
+    "answer": ["a"],
+    "explanation": "range(1, 5) starts at 1 and stops before 5, so it produces only 1, 2, 3, 4. To include the 5 you must ask for range(1, 6), because the end value is always left out. Reversing the numbers would make the loop print nothing at all, since it would start above its stopping point.",
+    "analogy": "It is like a ticket machine that always stops one ticket early - you have to press for ticket 6 before ticket 5 actually slides out.",
+    "mini": {
+      "prompt": "Which range call would make the loop print 1 2 3 4 5 ?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "range(1, 6)" },
+        { "id": "b", "text": "range(1, 5)" },
+        { "id": "c", "text": "range(0, 5)" },
+        { "id": "d", "text": "range(5, 1)" }
+      ],
+      "answer": "a",
+      "explanation": "One extra at the end leaves room for the 5, because range always stops before the second number you give it."
+    },
+    "hint": "Write out the exact values range(1, 5) produces and look closely at the last one.",
+    "tags": ["range", "off-by-one"]
+  },
+  {
+    "id": "u4-q10",
+    "unit": 4,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each range() call to the numbers it produces.",
+    "pairs": [
+      { "left": "range(5)", "right": "0, 1, 2, 3, 4" },
+      { "left": "range(2, 5)", "right": "2, 3, 4" },
+      { "left": "range(0, 10, 2)", "right": "0, 2, 4, 6, 8" },
+      { "left": "range(3, 0, -1)", "right": "3, 2, 1" }
+    ],
+    "explanation": "One number means start at 0 and stop before it, two numbers mean start here and stop before there, and a third number is the step - how far you jump each time, with a negative step counting backwards. The end value stays out in every case.",
+    "analogy": "It is like an escalator: the first number is where you get on, the second is the floor you never quite reach, and the third is how many steps you skip at a time.",
+    "mini": {
+      "prompt": "What does range(0, 10, 2) produce?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "0, 2, 4, 6, 8" },
+        { "id": "b", "text": "0, 2, 4, 6, 8, 10" },
+        { "id": "c", "text": "2, 4, 6, 8, 10" },
+        { "id": "d", "text": "10, 8, 6, 4, 2" }
+      ],
+      "answer": "a",
+      "explanation": "The step is 2, so it jumps by twos, and because it stops before 10 the number 10 itself is never produced."
+    },
+    "hint": "Think about where you get on, where you must stop short, and how big each jump is.",
+    "tags": ["range", "step"]
+  },
+  {
+    "id": "u4-q11",
+    "unit": 4,
+    "difficulty": "hard",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "What is the output of this code?\n\nn = 0\nwhile True:\n    n = n + 1\n    if n % 2 == 0:\n        continue\n    if n > 7:\n        break\n    print(n)",
+    "options": [
+      { "id": "a", "text": "1\n3\n5\n7" },
+      { "id": "b", "text": "1\n3\n5\n7\n9" },
+      { "id": "c", "text": "1\n2\n3\n4\n5\n6\n7" },
+      { "id": "d", "text": "Nothing - the loop never ends" }
+    ],
+    "answer": ["a"],
+    "explanation": "Even numbers meet the continue and jump back to the top, so they are never printed and they skip the second check as well. Odd numbers reach the break test: 1, 3, 5 and 7 print, then n becomes 9, passes the even test, and trips the break before print can run.",
+    "analogy": "It is like a toll road with two checkpoints: even-numbered cars are waved back at the first one, and odd-numbered cars drive on until one taller than 7 is turned away at the second.",
+    "mini": {
+      "prompt": "In that code, what does continue do?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "skips the rest of this round and jumps back to the loop test" },
+        { "id": "b", "text": "ends the loop completely" },
+        { "id": "c", "text": "prints n on the next line anyway" },
+        { "id": "d", "text": "runs the loop backwards" }
+      ],
+      "answer": "a",
+      "explanation": "continue goes straight back to the top of the loop, so nothing written below it in that round gets a chance to run."
+    },
+    "hint": "Follow n one round at a time, and remember that continue jumps straight back to the top.",
+    "tags": ["while loop", "break", "continue", "tracing"]
+  },
+  {
+    "id": "u4-q12",
+    "unit": 4,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": true,
+    "prompt": "Boss question: what is the output of this code?",
+    "code": "total = 0\nfor i in range(1, 10):\n    if i % 3 == 0:\n        total = total + i\nprint(total)",
+    "options": [
+      { "id": "a", "text": "45" },
+      { "id": "b", "text": "18" },
+      { "id": "c", "text": "15" },
+      { "id": "d", "text": "3 6 9" }
+    ],
+    "answer": ["b"],
+    "explanation": "range(1, 10) walks through 1 to 9, and the if keeps only the values that leave no remainder with 3: 3, 6 and 9. Adding just those gives 3 + 6 + 9 = 18, while every other value is skipped. Adding everything would give 45, and print only ever shows the single running total.",
+    "analogy": "It is like a till that only accepts notes divisible by 3 - you feed it the whole stack from 1 to 9, but only three of them land in the drawer.",
+    "mini": {
+      "prompt": "If the line inside the if were total = total + 1 instead, what would print?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "3" },
+        { "id": "b", "text": "18" },
+        { "id": "c", "text": "9" },
+        { "id": "d", "text": "45" }
+      ],
+      "answer": "a",
+      "explanation": "Adding 1 each time counts the matches instead of adding their values, and 3, 6 and 9 make three matches in total."
+    },
+    "hint": "List the values of i first, then keep only the ones where i % 3 equals 0.",
+    "tags": ["for loop", "accumulation", "modulus", "boss"]
+  }
+]

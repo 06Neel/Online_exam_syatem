@@ -1,0 +1,356 @@
+[
+  {
+    "id": "u3-q01",
+    "unit": 3,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank to complete this sentence about Python's remainder operator.",
+    "blank": "The ___ operator gives the remainder left over after one number is divided by another.",
+    "accepted": ["%", "modulus", "modulo"],
+    "explanation": "The percent sign % is Python's modulus operator: it divides and then keeps only what is left over, so 17 % 5 equals 2 because 17 is three groups of 5 with 2 left over. It is not the same as normal division.",
+    "analogy": "Think of it like sharing 17 sweets into groups of 5 - three full groups are handed out and 2 sweets stay in your pocket.",
+    "mini": {
+      "prompt": "What is the value of 10 % 3?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "3" },
+        { "id": "b", "text": "1" },
+        { "id": "c", "text": "3.33" },
+        { "id": "d", "text": "13" }
+      ],
+      "answer": "b",
+      "explanation": "3 fits into 10 three times, and 3 x 3 = 9, so 1 is left over."
+    },
+    "hint": "It is the same key you already use when you type a percentage.",
+    "tags": ["modulus", "operators"]
+  },
+  {
+    "id": "u3-q02",
+    "unit": 3,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "What is the result of the expression 10 >= 10 in Python?",
+    "options": [
+      { "id": "a", "text": "True" },
+      { "id": "b", "text": "False" },
+      { "id": "c", "text": "10" },
+      { "id": "d", "text": "yes" }
+    ],
+    "answer": ["a"],
+    "explanation": "The symbol >= means greater than OR equal to. Since 10 is exactly equal to 10, the condition is satisfied and Python answers with the word True. Python always answers comparisons with True or False, never with a number or a word like yes.",
+    "analogy": "It is like a height sign at a water slide that reads you must be 10 or taller - somebody exactly 10 still gets to ride.",
+    "mini": {
+      "prompt": "What is the result of 7 != 7 ?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "True" },
+        { "id": "b", "text": "False" },
+        { "id": "c", "text": "7" },
+        { "id": "d", "text": "same" }
+      ],
+      "answer": "b",
+      "explanation": "The != operator asks whether the two sides are different, and 7 and 7 are the same, so the answer is False."
+    },
+    "hint": "Read the two characters together as one short English phrase.",
+    "tags": ["comparison", "boolean"]
+  },
+  {
+    "id": "u3-q03",
+    "unit": 3,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "x = 3\nif x > 5:\n    print('big')\nelse:\n    print('small')",
+    "options": [
+      { "id": "a", "text": "big" },
+      { "id": "b", "text": "small" },
+      { "id": "c", "text": "3" },
+      { "id": "d", "text": "big small" }
+    ],
+    "answer": ["b"],
+    "explanation": "The condition x > 5 asks whether 3 is greater than 5, which is False. When the condition fails, Python skips the indented block under the if and runs the else block instead, so it prints small.",
+    "analogy": "It is like a bouncer with one height rule: pass the test and you go one way, fail it and you are sent the other way.",
+    "mini": {
+      "prompt": "If score = 40, what does this print?\nif score >= 50:\n    print('pass')\nelse:\n    print('fail')",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "pass" },
+        { "id": "b", "text": "fail" },
+        { "id": "c", "text": "both pass and fail" },
+        { "id": "d", "text": "nothing at all" }
+      ],
+      "answer": "b",
+      "explanation": "40 is not greater than or equal to 50, so the condition is False and only the else block runs."
+    },
+    "hint": "First decide whether 3 > 5 is True or False, then see which block Python follows.",
+    "tags": ["if else", "conditionals"]
+  },
+  {
+    "id": "u3-q04",
+    "unit": 3,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Shreya wants a condition that is True only when marks is 50 or more AND also below 100. Which condition should she write?",
+    "options": [
+      { "id": "a", "text": "marks >= 50 and marks < 100" },
+      { "id": "b", "text": "marks >= 50 or marks < 100" },
+      { "id": "c", "text": "marks >= 50 and marks > 100" },
+      { "id": "d", "text": "marks between 50 and 100" }
+    ],
+    "answer": ["a"],
+    "explanation": "The word and needs BOTH halves to be true, so the mark must reach 50 and still stay under 100. With or, almost every number passes, because any value below 100 already satisfies one half on its own. Option d is not valid Python at all.",
+    "analogy": "It is like a coupon that asks you to be a member AND shop before Friday - you must clear both rules, not just one.",
+    "mini": {
+      "prompt": "Fill in the keyword Python uses when both of two conditions must be true.",
+      "type": "fill-blank",
+      "accepted": ["and"],
+      "explanation": "The keyword and gives True only when the condition on its left and the condition on its right are both True."
+    },
+    "hint": "Try each option with marks = 1000 in your head and see which ones wrongly say yes.",
+    "tags": ["logical operators", "and"]
+  },
+  {
+    "id": "u3-q05",
+    "unit": 3,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "This code should print 'yes' because x is greater than 5, but Python refuses to run it. What is the real problem?",
+    "code": "x = 10\nif x > 5:\nprint('yes')",
+    "options": [
+      { "id": "a", "text": "print('yes') is not indented, so Python cannot see it as part of the if" },
+      { "id": "b", "text": "x = 10 must be written as x == 10" },
+      { "id": "c", "text": "The single quotes around 'yes' must be changed to double quotes" },
+      { "id": "d", "text": "The condition needs round brackets: if (x > 5):" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python uses indentation, the spaces at the start of a line, to decide which statements belong together. Because print starts in the very first column it does not belong to the if block, so Python stops with an IndentationError. The condition and the quotes are both perfectly fine.",
+    "analogy": "Indentation works like the sub-points under a heading in your notes - nothing may sit at the heading's own level unless it starts a brand new heading.",
+    "mini": {
+      "prompt": "Which symbol must appear at the end of the line if x > 5 ?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "a colon :" },
+        { "id": "b", "text": "a semicolon ;" },
+        { "id": "c", "text": "a full stop ." },
+        { "id": "d", "text": "nothing at all" }
+      ],
+      "answer": "a",
+      "explanation": "The colon tells Python that a new indented block of statements starts on the very next line."
+    },
+    "hint": "Look at where each line begins on the left-hand side of the editor.",
+    "tags": ["indentation", "if"]
+  },
+  {
+    "id": "u3-q06",
+    "unit": 3,
+    "difficulty": "medium",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the keyword Python uses when either one of two conditions being true is enough.",
+    "blank": "Python joins two conditions with the keyword ___ when it is enough for just one of them to be true.",
+    "accepted": ["or"],
+    "explanation": "The keyword or gives True as soon as one of its two sides is True, which is handy when any one of several different situations should trigger the same action. Only when both sides are False does the whole expression become False.",
+    "analogy": "It is like opening a door with your key OR with the spare key - one of them working is enough to get you inside.",
+    "mini": {
+      "prompt": "Fill in the blank: not (5 > 9) gives ___",
+      "type": "fill-blank",
+      "accepted": ["true"],
+      "explanation": "5 > 9 is False, and the keyword not flips a False into a True."
+    },
+    "hint": "Think about how many of the two sides has to be true for the whole thing to work.",
+    "tags": ["logical operators", "or"]
+  },
+  {
+    "id": "u3-q07",
+    "unit": 3,
+    "difficulty": "medium",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code? The fixed seed makes the number exactly the same every time it runs.",
+    "code": "import random\nrandom.seed(0)\nn = random.randint(1, 10)\nif n > 5:\n    print('big', n)\nelse:\n    print('small', n)",
+    "options": [
+      { "id": "a", "text": "big 7" },
+      { "id": "b", "text": "small 7" },
+      { "id": "c", "text": "big 5" },
+      { "id": "d", "text": "small 10" }
+    ],
+    "answer": ["a"],
+    "explanation": "A seed fixes the sequence of random numbers, so seed(0) followed by randint(1, 10) always produces 7 no matter how many times you run the code. Because 7 > 5 is True, the if branch runs and print joins the two values with a space, giving big 7.",
+    "analogy": "Think of the seed as the starting instructions for a calculator game - enter the same code every time and you always walk the same path.",
+    "mini": {
+      "prompt": "What does random.randint(1, 6) produce?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "a whole number from 1 to 6, with both ends included" },
+        { "id": "b", "text": "only the number 1" },
+        { "id": "c", "text": "a decimal such as 3.42" },
+        { "id": "d", "text": "a whole number from 0 to 5" }
+      ],
+      "answer": "a",
+      "explanation": "randint picks a whole number between its two limits and includes both of them, unlike range() which leaves out the second number."
+    },
+    "hint": "Run it once with the seed in place - the very same value appears every single time.",
+    "tags": ["random", "conditionals"]
+  },
+  {
+    "id": "u3-q08",
+    "unit": 3,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each Python value to the way an if condition treats it.",
+    "pairs": [
+      { "left": "0", "right": "counts as False, so the if block is skipped" },
+      { "left": "'hello'", "right": "counts as True, so the if block runs" },
+      { "left": "'' (empty text)", "right": "counts as False, there is nothing inside it" },
+      { "left": "'0' (the text zero)", "right": "counts as True, it is a non-empty piece of text" }
+    ],
+    "explanation": "Python lets almost any value act as a True or False answer: the number zero and empty things such as an empty string are False, while any other number or any text with something in it is True. The tricky one is the text '0' - it looks like zero but it is still a word, so it counts as True.",
+    "analogy": "It is like an empty mailbox: an empty box means there is nothing to read, but one single letter - even one that just says zero - makes it worth opening.",
+    "mini": {
+      "prompt": "Which of these counts as False in an if condition?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "0" },
+        { "id": "b", "text": "1" },
+        { "id": "c", "text": "'hello'" },
+        { "id": "d", "text": "'0'" }
+      ],
+      "answer": "a",
+      "explanation": "Only zero and empty values count as False; the number 1 and any non-empty text such as 'hello' or '0' count as True."
+    },
+    "hint": "Ask yourself which values have something inside them and which ones are completely empty.",
+    "tags": ["truthiness", "boolean"]
+  },
+  {
+    "id": "u3-q09",
+    "unit": 3,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "This code should print 'medium' when x is 3, but Python stops with an error before printing anything. What is the real problem?",
+    "code": "x = 3\nif x > 5:\n    print('big')\nelse if x > 2:\n    print('medium')",
+    "options": [
+      { "id": "a", "text": "'else if' is not a Python word - the second line must start with elif" },
+      { "id": "b", "text": "The second condition should be x >= 2 instead of x > 2" },
+      { "id": "c", "text": "The two keywords must be joined together as elseif" },
+      { "id": "d", "text": "print('medium') is missing an else block after it" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python has no 'else if'. The combined keyword is written as one word, elif, which is short for else if, so the line above fails with a SyntaxError before the program can run at all. Changing the comparison to >= would not fix that, and joining the words into elseif is still wrong.",
+    "analogy": "It is like calling Robert by his nickname - your friends write Bob, and Python only ever accepts the short form elif.",
+    "mini": {
+      "prompt": "Which line correctly continues an if chain?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "elif grade >= 60:" },
+        { "id": "b", "text": "else if grade >= 60:" },
+        { "id": "c", "text": "elseif grade >= 60:" },
+        { "id": "d", "text": "elsif grade >= 60:" }
+      ],
+      "answer": "a",
+      "explanation": "Python's second-condition keyword is exactly elif - one word, all in lower case, ending with a colon."
+    },
+    "hint": "Say the two words out loud, then look for the single word Python uses instead of them.",
+    "tags": ["elif", "syntax error"]
+  },
+  {
+    "id": "u3-q10",
+    "unit": 3,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "a = 9\nb = 4\nif a > b:\n    if a % b == 0:\n        print('divisible')\n    else:\n        print('not divisible')\nelse:\n    print('skip')",
+    "options": [
+      { "id": "a", "text": "divisible" },
+      { "id": "b", "text": "not divisible" },
+      { "id": "c", "text": "skip" },
+      { "id": "d", "text": "1" }
+    ],
+    "answer": ["b"],
+    "explanation": "The outer test 9 > 4 is True, so Python enters that block and then checks the inner test. 9 % 4 leaves a remainder of 1 rather than 0, so a % b == 0 is False and the inner else runs, printing not divisible. The final else belongs to the outer if and is never reached.",
+    "analogy": "It is like nested boxes: you must open the outer box first, and only then can you look inside the smaller box that sits within it.",
+    "mini": {
+      "prompt": "With a = 8 and b = 4, would the inner test a % b == 0 be True or False?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "True" },
+        { "id": "b", "text": "False" },
+        { "id": "c", "text": "2" },
+        { "id": "d", "text": "It gives an error" }
+      ],
+      "answer": "a",
+      "explanation": "8 divided by 4 leaves no remainder, so 8 % 4 is 0 and the equality check succeeds."
+    },
+    "hint": "Work through the outer if first, and only then carefully work out what 9 % 4 gives.",
+    "tags": ["nested conditionals", "modulus"]
+  },
+  {
+    "id": "u3-q11",
+    "unit": 3,
+    "difficulty": "easy",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each comparison operator to the question it asks.",
+    "pairs": [
+      { "left": "==", "right": "asks if the two values are equal" },
+      { "left": "!=", "right": "asks if the two values are different" },
+      { "left": ">=", "right": "asks if the left value is greater or equal" },
+      { "left": "<=", "right": "asks if the left value is smaller or equal" }
+    ],
+    "explanation": "Each comparison operator looks at two values and always answers with True or False. Reading the symbols as short English phrases turns any if condition into a sentence you can understand, and one equal sign alone would be assignment instead of comparison.",
+    "analogy": "They work like the wording on a price tag - at least, at most, exactly - because each one answers a different everyday question about a number.",
+    "mini": {
+      "prompt": "Which operator means 'not equal'?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "!=" },
+        { "id": "b", "text": ">=" },
+        { "id": "c", "text": "=<" },
+        { "id": "d", "text": "==" }
+      ],
+      "answer": "a",
+      "explanation": "An exclamation mark followed by an equals sign is Python's way of saying 'not equal', while a single = would store a value instead."
+    },
+    "hint": "Read each symbol aloud as a short English phrase, one character at a time.",
+    "tags": ["comparison", "operators"]
+  },
+  {
+    "id": "u3-q12",
+    "unit": 3,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": true,
+    "prompt": "Boss question: what is the output of this code?",
+    "code": "n = 15\nif n % 2 == 0 and n % 3 == 0:\n    print('divisible by 6')\nelif n % 2 == 0 or n % 3 == 0:\n    print('divisible by one')\nelse:\n    print('divisible by neither')",
+    "options": [
+      { "id": "a", "text": "divisible by 6" },
+      { "id": "b", "text": "divisible by one" },
+      { "id": "c", "text": "divisible by neither" },
+      { "id": "d", "text": "15" }
+    ],
+    "answer": ["b"],
+    "explanation": "Start with 15 % 2, which leaves 1, so the first test n % 2 == 0 is False and the whole and condition fails straight away. Then 15 % 3 equals 0, which makes the or condition True because only one side is needed, so its branch prints and the final else never runs.",
+    "analogy": "Think of a stadium with three gates: the first needs two tickets held together, the second needs only one, and you leave the queue the moment any gate lets you in.",
+    "mini": {
+      "prompt": "If n = 6 instead, which branch would run?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "divisible by 6" },
+        { "id": "b", "text": "divisible by one" },
+        { "id": "c", "text": "divisible by neither" },
+        { "id": "d", "text": "nothing would print" }
+      ],
+      "answer": "a",
+      "explanation": "6 leaves no remainder with either 2 or 3, so the very first and condition is True and Python stops the chain right there."
+    },
+    "hint": "Take it one test at a time: what is 15 % 2, and then what does an or need before it turns True?",
+    "tags": ["logical operators", "modulus", "boss"]
+  }
+]

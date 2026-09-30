@@ -1,0 +1,356 @@
+[
+  {
+    "id": "u5-q01",
+    "unit": 5,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "In Python the characters of a string are numbered starting at 0. For s = 'python', which expression gives the last character, 'n'?",
+    "options": [
+      { "id": "a", "text": "s[-1]" },
+      { "id": "b", "text": "s[0]" },
+      { "id": "c", "text": "s[6]" },
+      { "id": "d", "text": "s[-7]" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python counts positions from 0, so 'python' only has positions 0 to 5 and s[6] asks for a position that does not exist. Negative positions count backwards from the end: -1 is the last character, -6 is the first, and -7 is one step too far, which is why s[-7] fails. Using s[-1] lets you grab the last character without needing to know how long the string is.",
+    "analogy": "Think of a row of mailboxes numbered 0, 1, 2 onwards, with a second set of labels painted on counting backwards from the end, where -1 sits on the very last mailbox.",
+    "mini": {
+      "prompt": "For s = 'python', what does s[-2] give?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "'n'" },
+        { "id": "b", "text": "'o'" },
+        { "id": "c", "text": "'p'" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "b",
+      "explanation": "Counting backwards from the end, -1 is the letter 'n', so -2 is the letter just before it, 'o'."
+    },
+    "hint": "Count backwards from the end of the string: the very last character is -1.",
+    "tags": ["strings", "indexing", "negative-indexing"]
+  },
+  {
+    "id": "u5-q02",
+    "unit": 5,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "word = 'adventure'\nprint(word[0:3], len(word))",
+    "options": [
+      { "id": "a", "text": "adv 9" },
+      { "id": "b", "text": "adve 9" },
+      { "id": "c", "text": "adv 10" },
+      { "id": "d", "text": "adventure 9" }
+    ],
+    "answer": ["a"],
+    "explanation": "The slice word[0:3] takes the characters at positions 0, 1 and 2 and stops before position 3, so it gives 'adv' and never 'adve'. The word 'adventure' has 9 letters, so len(word) is 9, not 10. print() puts one space between the two values, giving exactly 'adv 9'.",
+    "analogy": "Slicing is like lifting cupcakes out of a box: you start at the first slot and take them out up to, but never including, the slot number you wrote down.",
+    "mini": {
+      "prompt": "What does 'adventure'[3:5] give?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "en" },
+        { "id": "b", "text": "ent" },
+        { "id": "c", "text": "vent" },
+        { "id": "d", "text": "adve" }
+      ],
+      "answer": "a",
+      "explanation": "The slice starts at index 3 and stops before index 5, so it takes only the letters at 3 and 4, which are 'e' and 'n'."
+    },
+    "hint": "Work out the slice first (remember the stop-before rule), then simply count the letters in the word.",
+    "tags": ["strings", "slicing", "len"]
+  },
+  {
+    "id": "u5-q03",
+    "unit": 5,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank.",
+    "blank": "The string method find() returns the position of the first match, and it returns ___ when the text is not found.",
+    "accepted": ["-1"],
+    "explanation": "find() answers with the index where the match begins, counting from 0, so a match at the very start gives 0. Because 0 already means found at the beginning, Python needed a different value to mean not found, and it chose -1. That is why you can write if s.find('x') == -1 to check that something is missing.",
+    "analogy": "It is like asking a librarian where a book is: she either points to a shelf number or shrugs to say she has no idea, but she never points at a shelf called nothing.",
+    "mini": {
+      "prompt": "The string method ___() counts how many times a piece of text appears.",
+      "type": "fill-blank",
+      "accepted": ["count", ".count", "str.count"],
+      "explanation": "count() looks through the string and returns how many times the text shows up in it."
+    },
+    "hint": "It is a negative number, and it is the very same number Python uses to say a position does not exist.",
+    "tags": ["strings", "find", "methods"]
+  },
+  {
+    "id": "u5-q04",
+    "unit": 5,
+    "difficulty": "medium",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "word = 'banana'\ntotal = 0\nfor ch in word:\n    if ch == 'a':\n        total += 1\nprint(total)",
+    "options": [
+      { "id": "a", "text": "3" },
+      { "id": "b", "text": "6" },
+      { "id": "c", "text": "banana" },
+      { "id": "d", "text": "'a'" }
+    ],
+    "answer": ["a"],
+    "explanation": "The for loop walks through the string one character at a time, so ch becomes 'b', then 'a', then 'n', and so on. The comparison ch == 'a' is True three times because banana holds the letter 'a' at positions 1, 3 and 5, and each time total goes up by one. The final print shows the number 3.",
+    "analogy": "It is like reading a sentence word by word and putting a tally mark in a notebook every time the word 'a' appears; at the end the notebook simply shows 3 marks.",
+    "mini": {
+      "prompt": "In the loop for ch in 'abc':, what does ch hold on the second pass?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "'a'" },
+        { "id": "b", "text": "'b'" },
+        { "id": "c", "text": "'abc'" },
+        { "id": "d", "text": "2" }
+      ],
+      "answer": "b",
+      "explanation": "The loop walks through the string one character at a time, so the second pass gives the second character, 'b'."
+    },
+    "hint": "Count how many times the loop body actually runs with ch equal to the letter a.",
+    "tags": ["strings", "for-loop", "traversal", "comparison"]
+  },
+  {
+    "id": "u5-q05",
+    "unit": 5,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "There is exactly one bug in this code. What is it?",
+    "code": "s = 'hello'\ns[0] = 'H'\nprint(s)",
+    "options": [
+      { "id": "a", "text": "Strings cannot be changed in place, so assigning to s[0] raises an error." },
+      { "id": "b", "text": "Python indexes start at 1, so it should be s[1] = 'H'." },
+      { "id": "c", "text": "The quotes must match, so s should also be written with double quotes." },
+      { "id": "d", "text": "print(s) has to run before the change, otherwise the new letter is lost." }
+    ],
+    "answer": ["a"],
+    "explanation": "Strings are immutable, which is a fancy way of saying their characters cannot be swapped after the string exists, so s[0] = 'H' is not allowed. Python indexes do start at 0, so the second choice is wrong, and mixing quote styles is perfectly fine in Python. To get a new text you build a fresh string, for example s = 'H' + s[1:].",
+    "analogy": "A string is like a sentence carved in stone: you cannot erase one letter and paint in a new one, but you can chisel a whole new slab that includes the change.",
+    "mini": {
+      "prompt": "Which line correctly turns s = 'hello' into 'Hello'?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "s[0] = 'H'" },
+        { "id": "b", "text": "s = 'H' + s[1:]" },
+        { "id": "c", "text": "s.change(0, 'H')" },
+        { "id": "d", "text": "s.set(0, 'H')" }
+      ],
+      "answer": "b",
+      "explanation": "Strings cannot change in place, so the only way is to build a brand new string out of the old pieces."
+    },
+    "hint": "The word immutable means cannot be modified, so which choice builds a new string instead of editing the old one?",
+    "tags": ["strings", "immutability", "spot-error"]
+  },
+  {
+    "id": "u5-q06",
+    "unit": 5,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each string method with what it does.",
+    "pairs": [
+      { "left": "text.upper()", "right": "turns every letter into capitals" },
+      { "left": "text.lower()", "right": "turns every letter into small letters" },
+      { "left": "text.find('x')", "right": "gives the index of the first 'x', or -1 if missing" },
+      { "left": "text.count('x')", "right": "counts how many times 'x' appears" }
+    ],
+    "explanation": "Each method answers a different question about the same string: upper() and lower() only change how the letters look, find() tells you where something first appears, and count() tells you how many times it happens. Remember that upper() and lower() give back a brand new string, because strings themselves are immutable.",
+    "analogy": "It is like asking four questions about one page of text: shout it in capitals, whisper it, point to where a word first shows up, and tally how many times it appears.",
+    "mini": {
+      "prompt": "Which method would you use to split a sentence into a list of words?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "split()" },
+        { "id": "b", "text": "chop()" },
+        { "id": "c", "text": "divide()" },
+        { "id": "d", "text": "words()" }
+      ],
+      "answer": "a",
+      "explanation": "split() cuts the string into pieces and hands them back as a list; the other names are not Python methods."
+    },
+    "hint": "Two of these methods change how the letters look, while the other two only report information about the string.",
+    "tags": ["strings", "methods", "match"]
+  },
+  {
+    "id": "u5-q07",
+    "unit": 5,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Python compares strings letter by letter from the left, the way words are sorted in a dictionary. What is the result of 'apple' < 'ant'?",
+    "options": [
+      { "id": "a", "text": "False" },
+      { "id": "b", "text": "True" },
+      { "id": "c", "text": "an error" },
+      { "id": "d", "text": "'ant'" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python first compares the opening letters, and both strings start with 'a', so it moves on to the next letter. Next it compares 'p' with 'n', and because 'p' comes later in the alphabet than 'n', the string 'apple' is the bigger one, making the expression False. This letter-by-letter comparing is called lexicographic order.",
+    "analogy": "It works exactly like a dictionary deciding order: apple is listed after ant because p is later in the alphabet than n, even though apple may feel shorter or smaller to you.",
+    "mini": {
+      "prompt": "What does 'an' in 'banana' evaluate to?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "1" },
+        { "id": "b", "text": "True" },
+        { "id": "c", "text": "False" },
+        { "id": "d", "text": "'banana'" }
+      ],
+      "answer": "b",
+      "explanation": "The in operator only answers yes or no, and it says True here because the letters a and n really are sitting next to each other in banana."
+    },
+    "hint": "Line the two strings up from the left and stop at the first letter where they differ.",
+    "tags": ["strings", "comparison", "lexicographic"]
+  },
+  {
+    "id": "u5-q08",
+    "unit": 5,
+    "difficulty": "medium",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank.",
+    "blank": "The string method ___() breaks a string into a list of pieces using a separator such as a comma.",
+    "accepted": ["split", ".split", "str.split", "string.split"],
+    "explanation": "'a,b,c'.split(',') gives the list ['a', 'b', 'c'], which is handy when you have one line of text but want the separate items. The separator is optional: with no separator at all, split() cuts at every space instead. Like every string method, split() does not change the original text, it hands back a brand new list.",
+    "analogy": "It is like cutting a beaded necklace at every knot so that instead of one long string you end up with a handful of separate beads sitting in a bowl.",
+    "mini": {
+      "prompt": "The string method ___() glues the pieces of a list back into one single string.",
+      "type": "fill-blank",
+      "accepted": ["join", ".join", "str.join"],
+      "explanation": "join() places a separator between the items and returns one single string, which is the opposite of split()."
+    },
+    "hint": "Think of the opposite of joining things together: this method takes one string and makes many pieces.",
+    "tags": ["strings", "split", "join", "fill-blank"]
+  },
+  {
+    "id": "u5-q09",
+    "unit": 5,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "s = 'ab' * 3\nprint(len(s), s[1:5], s[-1])",
+    "options": [
+      { "id": "a", "text": "6 baba b" },
+      { "id": "b", "text": "6 abab b" },
+      { "id": "c", "text": "6 baba a" },
+      { "id": "d", "text": "3 abab b" }
+    ],
+    "answer": ["a"],
+    "explanation": "The * operator glues 'ab' together three times to make 'ababab', which holds 6 characters, so len(s) is 6 rather than 3. The slice s[1:5] starts at index 1 and stops before index 5, taking the characters at positions 1, 2, 3 and 4, which spell 'baba'. Finally s[-1] means the last character, 'b', so print separates 6, baba and b with single spaces.",
+    "analogy": "Imagine the tile pattern ab stamped three times to make a floor 6 tiles long; slicing from tile 1 up to, but not including, tile 5 lifts out four tiles from the middle.",
+    "mini": {
+      "prompt": "What is 'ab' * 2?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "abab" },
+        { "id": "b", "text": "ab ab" },
+        { "id": "c", "text": "2ab" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "a",
+      "explanation": "The * operator repeats the whole string, so 'ab' * 2 writes 'ab' twice with nothing in between."
+    },
+    "hint": "Write the repeated string on paper first, count its characters, then slice from index 1 up to (not including) index 5.",
+    "tags": ["strings", "repetition", "slicing", "negative-indexing"]
+  },
+  {
+    "id": "u5-q10",
+    "unit": 5,
+    "difficulty": "easy",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "There is exactly one bug in this line of code. What is it?",
+    "code": "print(\"She said \"hi\"\")",
+    "options": [
+      { "id": "a", "text": "The inner quotes close the string too early; escape them with a backslash or use single quotes on the outside." },
+      { "id": "b", "text": "print() cannot print a sentence that contains more than one word." },
+      { "id": "c", "text": "The word hi must be stored in a variable before it can be printed." },
+      { "id": "d", "text": "The parentheses are missing a comma between the two parts." }
+    ],
+    "answer": ["a"],
+    "explanation": "Python reads up to the second quote mark and believes the string has ended, so the letters hi sitting in the middle are a syntax error. A backslash before a quote tells Python that this quote is part of the text rather than the end of the string, and that is what escaping means. Another way out is to wrap the whole thing in single quotes so the inner double quotes are free to appear.",
+    "analogy": "Quote marks work like a light switch: the first one turns the string on and the next one turns it off, so a stray quote in the middle switches everything off far too early.",
+    "mini": {
+      "prompt": "Which line prints: He said \"hi\"?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "print('He said \"hi\"')" },
+        { "id": "b", "text": "print(\"He said \"hi\"\")" },
+        { "id": "c", "text": "print(He said hi)" },
+        { "id": "d", "text": "print(\"He said hi\")" }
+      ],
+      "answer": "a",
+      "explanation": "Single quotes on the outside let the double quotes sit inside the string without needing any escaping at all."
+    },
+    "hint": "Find the quote where Python thinks the string starts, then the quote where it thinks the string ends.",
+    "tags": ["strings", "escaping", "syntax", "spot-error"]
+  },
+  {
+    "id": "u5-q11",
+    "unit": 5,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each expression with the value it produces.",
+    "pairs": [
+      { "left": "'abc' + 'def'", "right": "abcdef" },
+      { "left": "'ab' * 3", "right": "ababab" },
+      { "left": "len('hello')", "right": "5" },
+      { "left": "'hello'[1:4]", "right": "ell" },
+      { "left": "', '.join(['hi', 'bye'])", "right": "hi, bye" }
+    ],
+    "explanation": "The plus glues two strings end to end, the star repeats a string over and over, len() counts the characters, the slice takes a piece starting at index 1 and stopping before index 4, and join() glues list pieces together with a separator placed between them. Notice that 'hello'[1:4] holds 3 letters because the slice stops before position 4.",
+    "analogy": "Strings behave like a strip of lettered tiles: plus lays two strips end to end, the star stamps the same strip again and again, and slicing lifts out a few tiles while the original strip stays untouched.",
+    "mini": {
+      "prompt": "What does ', '.join(['a', 'b']) produce?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "a, b" },
+        { "id": "b", "text": ", a, b," },
+        { "id": "c", "text": "ab" },
+        { "id": "d", "text": "a b" }
+      ],
+      "answer": "a",
+      "explanation": "join() places ', ' between the items and nowhere else, so the result is simply a, b."
+    },
+    "hint": "Decide for each line whether you are gluing, repeating, counting, cutting a slice, or joining list pieces.",
+    "tags": ["strings", "concatenation", "repetition", "slicing", "join", "match"]
+  },
+  {
+    "id": "u5-q12",
+    "unit": 5,
+    "difficulty": "hard",
+    "type": "mcq",
+    "boss": true,
+    "prompt": "s = 'adventure'\nt = s[2:6]\nSuppose you then run the line t[0] = 'X'. Which statement is correct?",
+    "options": [
+      { "id": "a", "text": "t is 'vent', and t[0] = 'X' raises an error because strings cannot change in place." },
+      { "id": "b", "text": "t is 'vent', and t[0] = 'X' changes t into 'Xent'." },
+      { "id": "c", "text": "t is 'adve', and t[0] = 'X' changes both t and s." },
+      { "id": "d", "text": "t is 'vent', and t[0] = 'X' changes both t and s because they share characters." }
+    ],
+    "answer": ["a"],
+    "explanation": "The slice s[2:6] takes indexes 2, 3, 4 and 5 and stops before 6, so t is 'vent' rather than 'adve', which would be s[0:4]. Slicing always builds a new string, and strings are immutable, so trying t[0] = 'X' raises a TypeError instead of changing anything. Because t is a separate brand new string, even a successful change could never reach back into s.",
+    "analogy": "Slicing is like photocopying part of a page: t is the copy, the original s stays untouched, and you cannot glue a new letter onto a photocopy, you would have to make another copy with the change.",
+    "mini": {
+      "prompt": "What does 'adventure'[-3:] give?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "ure" },
+        { "id": "b", "text": "tur" },
+        { "id": "c", "text": "ent" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "a",
+      "explanation": "A slice that starts at -3 begins three characters from the end and runs to the finish, so it collects 'u', 'r' and 'e'."
+    },
+    "hint": "Count the positions 2, 3, 4 and 5 by hand, then remember what the word immutable says about changing one character.",
+    "tags": ["strings", "slicing", "immutability", "boss"]
+  }
+]

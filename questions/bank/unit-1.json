@@ -1,0 +1,355 @@
+[
+  {
+    "id": "u1-q01",
+    "unit": 1,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "You open a terminal on Windows and want to find out which version of Python is installed. Which command do you type?",
+    "options": [
+      { "id": "a", "text": "python --version" },
+      { "id": "b", "text": "python.version()" },
+      { "id": "c", "text": "get python version" },
+      { "id": "d", "text": "version python" }
+    ],
+    "answer": ["a"],
+    "explanation": "python is the command that starts Python, and --version is a flag (an extra instruction) telling it to answer with its version number, something like Python 3.14.7. The other choices are not real commands: python.version() looks like a function call, and the rest are English words that a terminal cannot make sense of.",
+    "analogy": "Think of it like phoning a company and then asking reception how old the company is: first you dial the number (python), then you ask your question (--version).",
+    "mini": {
+      "prompt": "Which of these would print the version of Python you have installed?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "python --version" },
+        { "id": "b", "text": "print --version" },
+        { "id": "c", "text": "version of python" },
+        { "id": "d", "text": "python version.show" }
+      ],
+      "answer": "a",
+      "explanation": "--version is the flag that asks python to report its version, so 'python --version' is the command that prints it."
+    },
+    "hint": "The command has to begin with the name of the program you are talking to.",
+    "tags": ["environment", "python --version", "terminal"]
+  },
+  {
+    "id": "u1-q02",
+    "unit": 1,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Finish the sentence about how Python programs are saved.",
+    "blank": "Python source files are saved with the extension ___.",
+    "accepted": [".py", "py"],
+    "explanation": "A Python program is just a plain text file, and the ending .py marks it as Python code so your computer and tools like IDLE know how to handle it. The usual way to write it includes the dot, but 'py' on its own means the same thing here.",
+    "analogy": "It works like a file's surname: just as holiday photos end in .jpg, Python code ends in .py so you can tell what family it belongs to.",
+    "mini": {
+      "prompt": "A saved Python file usually ends in ___ .",
+      "type": "fill-blank",
+      "accepted": [".py", "py"],
+      "explanation": "Files that hold Python code always carry the .py ending, for example game.py or quiz.py."
+    },
+    "hint": "It is two letters, and the full ending also has a dot in front of them.",
+    "tags": [".py", "file extension", "files"]
+  },
+  {
+    "id": "u1-q03",
+    "unit": 1,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What does this line show when you run it?",
+    "code": "print('Hello, World!')",
+    "options": [
+      { "id": "a", "text": "Hello, World!" },
+      { "id": "b", "text": "print('Hello, World!')" },
+      { "id": "c", "text": "'Hello, World!'" },
+      { "id": "d", "text": "hello, world!" }
+    ],
+    "answer": ["a"],
+    "explanation": "print() displays the text that sits inside the quotation marks and leaves the quotation marks themselves out, so you see Hello, World! exactly as it was written. Python never re-spells or re-capitalises your text on the way out, so the capital H and W and the comma all stay where they are.",
+    "analogy": "print() is like reading a line from a card out loud: you say the words, but you don't read the quotation marks that surround them.",
+    "mini": {
+      "prompt": "What does print('Game Over') put on the screen?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "Game Over" },
+        { "id": "b", "text": "'Game Over'" },
+        { "id": "c", "text": "print('Game Over')" },
+        { "id": "d", "text": "game over" }
+      ],
+      "answer": "a",
+      "explanation": "print shows the letters exactly as written inside the quotes, capitals and all, and the quotation marks are not part of what appears."
+    },
+    "hint": "Watch what happens to the quotation marks and to the capital letters.",
+    "tags": ["print", "output", "strings"]
+  },
+  {
+    "id": "u1-q04",
+    "unit": 1,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Which TWO statements about the Python shell (the REPL) are true? (choose 2)",
+    "options": [
+      { "id": "a", "text": "It shows a >>> prompt and runs each line as soon as you press Enter" },
+      { "id": "b", "text": "You must save a .py file before the shell will run anything" },
+      { "id": "c", "text": "You can type 2 + 2 and it answers 4 immediately" },
+      { "id": "d", "text": "It is the only way to run a Python program" }
+    ],
+    "answer": ["a", "c"],
+    "explanation": "The shell is interactive: you type one line, press Enter, and that line runs straight away, so 2 + 2 comes back as 4 without you saving anything. Running a saved script is a different path: you write the code into a .py file and use python myfile.py in the terminal, so the shell is never required and is certainly not the only way.",
+    "analogy": "The shell is like texting a friend one quick line and getting an instant reply, while a script is like writing a whole letter, sealing it, and posting it to be read all at once.",
+    "mini": {
+      "prompt": "Which one is a saved Python program that you run in one go?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "the >>> prompt" },
+        { "id": "b", "text": "a file named game.py" },
+        { "id": "c", "text": "the python --version command" },
+        { "id": "d", "text": "one single print() message" }
+      ],
+      "answer": "b",
+      "explanation": "A script is a program saved into a .py file, and you run the whole file at once with a command like python game.py."
+    },
+    "hint": "One choice runs a single line at a time, the other is a file sitting on your disk.",
+    "tags": ["REPL", "shell", "script"]
+  },
+  {
+    "id": "u1-q05",
+    "unit": 1,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "This file should print Hello and then Bye, but Python stops with an error before printing anything. What is wrong?",
+    "code": "print(\"Hello)\nprint(\"Bye\")",
+    "options": [
+      { "id": "a", "text": "Line 1: the text opens with a quote but never gets its closing quote" },
+      { "id": "b", "text": "Line 2: print must be written with a capital P, Print" },
+      { "id": "c", "text": "Line 1: print() needs two pieces of text inside it" },
+      { "id": "d", "text": "Line 2: strings in Python must always use single quotes" }
+    ],
+    "answer": ["a"],
+    "explanation": "Text has to be wrapped in a matching pair of quotes, and line 1 opens one without ever closing it, so Python reports a syntax error before the first line runs. Line 2 is perfectly fine: its quotes are correctly paired and print with a small p is the correct spelling.",
+    "analogy": "It is like starting a phone call and never saying goodbye: Python keeps waiting for the closing quote until it finally gives up.",
+    "mini": {
+      "prompt": "Python rejects this line: print(\"Score: 7) - what has to be added?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "a closing quotation mark" },
+        { "id": "b", "text": "a comma" },
+        { "id": "c", "text": "the word end" },
+        { "id": "d", "text": "a second print" }
+      ],
+      "answer": "a",
+      "explanation": "The quote that opens a piece of text must be closed again, so the line needs another quote mark before its closing bracket."
+    },
+    "hint": "Count the quotation marks on the first line - do they come in a pair?",
+    "tags": ["syntax error", "quotes", "spot-error"]
+  },
+  {
+    "id": "u1-q06",
+    "unit": 1,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each Python word with what it means.",
+    "pairs": [
+      { "left": "REPL", "right": "type a line and see the answer at once" },
+      { "left": "script", "right": "a saved .py file you run in one go" },
+      { "left": "interpreter", "right": "the program that reads and runs your code" },
+      { "left": "IDLE", "right": "the simple editor that comes with Python" }
+    ],
+    "explanation": "The interpreter is the engine that actually reads and runs your Python, while IDLE is just a friendly window with an editor and a shell built around it. A REPL is the mode where each line runs the moment you press Enter, and a script is that same kind of code saved into a file to be run as one whole program.",
+    "analogy": "The interpreter is a chef following your recipe, IDLE is the kitchen they work in, the REPL is tasting one spoonful at a time, and a script is handing over the whole recipe card to be cooked in one go.",
+    "mini": {
+      "prompt": "Which of these runs a line the moment you press Enter?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "a saved script" },
+        { "id": "b", "text": "the REPL shell" },
+        { "id": "c", "text": "a .py file name" },
+        { "id": "d", "text": "the installer for Python" }
+      ],
+      "answer": "b",
+      "explanation": "The REPL shell is interactive, so it runs whatever single line you just typed as soon as Enter is pressed."
+    },
+    "hint": "One of them is an interactive prompt, and one of them is a saved file.",
+    "tags": ["REPL", "script", "interpreter", "IDLE"]
+  },
+  {
+    "id": "u1-q07",
+    "unit": 1,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "A program runs print(\"Score:\", 7 + 5) on its first line and then print(\"Level\", 2 * 3) on its second line. What appears when you run it?",
+    "options": [
+      { "id": "a", "text": "Score: 12 on the first line, Level 6 on the second" },
+      { "id": "b", "text": "Score: 7 + 5 on the first line, Level 2 * 3 on the second" },
+      { "id": "c", "text": "Score:12 on the first line, Level6 on the second" },
+      { "id": "d", "text": "One single line reading: Score: 12 Level 6" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python works out the maths before printing anything, so 7 + 5 becomes 12 and 2 * 3 becomes 6. When print() gets a comma it puts exactly one space between the pieces, and every print() call starts a brand new line, which is why there are two lines of output.",
+    "analogy": "print() works like a receipt printer: each print() tears off a fresh line, and the comma works like tapping the space bar once between two items.",
+    "mini": {
+      "prompt": "What does print('Total', 3 + 4) show on the screen?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "Total 7" },
+        { "id": "b", "text": "Total 3 + 4" },
+        { "id": "c", "text": "Total7" },
+        { "id": "d", "text": "3 + 4 Total" }
+      ],
+      "answer": "a",
+      "explanation": "The sum is worked out first and gives 7, and the comma between the two values puts a single space between them."
+    },
+    "hint": "Do the maths first, then look at what the comma does between the two values.",
+    "tags": ["print", "output", "operators"]
+  },
+  {
+    "id": "u1-q08",
+    "unit": 1,
+    "difficulty": "medium",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Complete the terminal command that runs a saved program.",
+    "blank": "In the terminal you run a saved file named quiz.py by typing ___ quiz.py.",
+    "accepted": ["python", "python3", "py", "python.exe"],
+    "explanation": "The command names the interpreter and then hands it the file to run, so python quiz.py means 'Python, please run quiz.py'. You also have to be sitting in the folder that holds the file, or give the full path, otherwise the terminal will say it cannot find it.",
+    "analogy": "It is like telling a player to press play on this tape: python is the player and quiz.py is the tape you want it to run.",
+    "mini": {
+      "prompt": "To ask Python to print its version, you type python ___ .",
+      "type": "fill-blank",
+      "accepted": ["--version", "-V"],
+      "explanation": "The flag --version (or its short form -V) is what makes the python command report its version number."
+    },
+    "hint": "The command starts with the name of the program, then a space, then the file's name.",
+    "tags": ["running files", "terminal", "commands"]
+  },
+  {
+    "id": "u1-q09",
+    "unit": 1,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "Python reads this file happily but stops on line 2 with an error. Which kind of mistake is it?",
+    "code": "total = 10\naverage = total / 0\nprint(average)",
+    "options": [
+      { "id": "a", "text": "A runtime error: the maths tries to divide by zero" },
+      { "id": "b", "text": "A syntax error: Python does not allow the / symbol" },
+      { "id": "c", "text": "A syntax error: total has not been given a number yet" },
+      { "id": "d", "text": "No error at all - it prints 0" }
+    ],
+    "answer": ["a"],
+    "explanation": "Every line is spelled correctly, so Python starts running them from the top; the problem only appears when line 2 actually tries to do 10 divided by 0, which cannot be done, so the program stops with a ZeroDivisionError. A syntax error would be different: Python would refuse to run even the first line, because it checks the whole file before starting.",
+    "analogy": "A syntax error is like a typo you spot before sending the message, while a runtime error is like the message sending fine but the phone number not existing when you try to call it.",
+    "mini": {
+      "prompt": "Which of these would Python find BEFORE the program runs at all?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "print(\"Hi)" },
+        { "id": "b", "text": "5 / 0" },
+        { "id": "c", "text": "print(2 + 2)" },
+        { "id": "d", "text": "x = 10" }
+      ],
+      "answer": "a",
+      "explanation": "Python can see the unmatched quote just by reading the code, so it stops before running anything, while dividing by zero only fails when that line is reached."
+    },
+    "hint": "One mistake is visible just from reading the line, the other only shows up when the calculation is really done.",
+    "tags": ["runtime error", "ZeroDivisionError", "syntax vs runtime"]
+  },
+  {
+    "id": "u1-q10",
+    "unit": 1,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "You are typing into the Python shell (the >>> prompt), one line at a time. First you type the line below and press Enter, then on the next line you type the second line and press Enter. What does the shell show?",
+    "code": "print(\"Hi\")\n\"Hi\"",
+    "options": [
+      { "id": "a", "text": "First line: Hi     Second line: 'Hi'" },
+      { "id": "b", "text": "First line: 'Hi'     Second line: Hi" },
+      { "id": "c", "text": "Hi on the first line and Hi on the second line" },
+      { "id": "d", "text": "'Hi' on the first line and 'Hi' on the second line" }
+    ],
+    "answer": ["a"],
+    "explanation": "print() hands the value to the screen without any decoration, so the first line is just Hi. When you type a value with no print() around it, the shell shows you a display version of it (often called its repr), and for text that means single quotes, so you can tell it is a piece of text rather than the name of a variable.",
+    "analogy": "print() is saying the words out loud, while just typing the value and pressing Enter is holding the written card up for someone else to read - they see the quotation marks printed on it.",
+    "mini": {
+      "prompt": "In the shell, what appears when you type 3 + 4 on its own and press Enter?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "7" },
+        { "id": "b", "text": "'7'" },
+        { "id": "c", "text": "3 + 4" },
+        { "id": "d", "text": "nothing at all" }
+      ],
+      "answer": "a",
+      "explanation": "Numbers are shown back as plain digits with no quotes, because quotes only appear around text so that you can see it is a string."
+    },
+    "hint": "One form shows the value itself, the other shows it as text wrapped in quotation marks.",
+    "tags": ["REPL", "print", "repr", "shell"]
+  },
+  {
+    "id": "u1-q11",
+    "unit": 1,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each thing you can type with what it does.",
+    "pairs": [
+      { "left": "python --version", "right": "shows which Python version is installed" },
+      { "left": "python game.py", "right": "runs the program saved in game.py" },
+      { "left": "print(\"Hi\")", "right": "prints Hi in the terminal" },
+      { "left": ">>>", "right": "the prompt meaning the shell is waiting" }
+    ],
+    "explanation": "The first two are typed into the terminal: one asks Python about itself, and the other hands Python a file to run. The third is a line of Python code that displays text, and >>> is not code at all - it is the shell telling you it is ready for your next line.",
+    "analogy": "The terminal is like a switchboard: asking for the version is a quick enquiry, running a file connects you to a whole programme, print() sends a note once you are through, and >>> is the operator saying that they are listening.",
+    "mini": {
+      "prompt": "Which one is a terminal command rather than a line of Python code?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "print(\"Hi\")" },
+        { "id": "b", "text": "python game.py" },
+        { "id": "c", "text": "total = 3 + 4" },
+        { "id": "d", "text": "\"hello\"" }
+      ],
+      "answer": "b",
+      "explanation": "python game.py is a command for the terminal that starts Python and runs a file, while all the others are lines you would write inside a Python program."
+    },
+    "hint": "Two entries are commands for the terminal, and two are things you see or type inside Python.",
+    "tags": ["terminal", "print", "commands"]
+  },
+  {
+    "id": "u1-q12",
+    "unit": 1,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": true,
+    "prompt": "You save this as calc.py, open a terminal in that folder and run python calc.py. What happens on the screen?",
+    "code": "print(\"Start\")\nprint(\"Half of 10 is\", 10 / 0)\nprint(\"Done\")",
+    "options": [
+      { "id": "a", "text": "Start is printed, then Python stops with a ZeroDivisionError and Done never appears" },
+      { "id": "b", "text": "A syntax error is reported before anything is printed, because 10 / 0 is not allowed" },
+      { "id": "c", "text": "Start, then Half of 10 is 5.0, then Done" },
+      { "id": "d", "text": "Start, then a blank line, then Done" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python runs a file from the top line downwards, so Start reaches the screen first. Line 2 is spelled correctly but the calculation cannot be performed - nothing can be divided by zero - so the program stops there with a runtime error and line 3 is never reached. That is exactly what separates a runtime error from a syntax error: a syntax problem would stop Python before even the first line could run, while this one only appears when the problem line is actually executed.",
+    "analogy": "It is like a road trip with three stops: you reach the first town fine, but the bridge on the second leg is washed out, so the journey halts there and you never arrive at the third town.",
+    "mini": {
+      "prompt": "Which kind of mistake stops Python before ANY line of the program runs?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "a syntax error" },
+        { "id": "b", "text": "dividing by zero" },
+        { "id": "c", "text": "a wrong number in the maths" },
+        { "id": "d", "text": "a missing print at the end" }
+      ],
+      "answer": "a",
+      "explanation": "Python checks the whole file for syntax problems first, so a syntax error blocks everything, while runtime errors only happen when the problem line is reached."
+    },
+    "hint": "Think about when Python notices each kind of problem: while it is reading the file, or while it is actually running it.",
+    "tags": ["boss", "runtime error", "line by line", "syntax vs runtime"]
+  }
+]

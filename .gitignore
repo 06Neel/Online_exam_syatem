@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Runtime data (teacher accounts, uploads, sessions, backups - never committed)
+server/data/
+
+# Env / logs
+.env
+.env.*
+*.log
+npm-debug.log*
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

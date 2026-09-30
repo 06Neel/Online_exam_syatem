@@ -1,0 +1,351 @@
+[
+  {
+    "id": "u6-q01",
+    "unit": 6,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "A list numbers its items just like a string does, starting at 0. For nums = [10, 20, 30], which expression gives the FIRST item?",
+    "options": [
+      { "id": "a", "text": "nums[0]" },
+      { "id": "b", "text": "nums[1]" },
+      { "id": "c", "text": "nums[-1]" },
+      { "id": "d", "text": "nums.first()" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python always counts positions starting at 0, so the first item of any list sits at index 0, while index 1 gives the second item, 20. Negative indexes count from the other end, so nums[-1] gives the last item, 30. Lists have no first() method at all, so that choice would raise an error.",
+    "analogy": "The ticket machine at a theatre numbers seats from 0: a ticket saying 0 means the very first seat, and seat 1 is already the second one along.",
+    "mini": {
+      "prompt": "For nums = [10, 20, 30], what is nums[-1]?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "10" },
+        { "id": "b", "text": "30" },
+        { "id": "c", "text": "0" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "b",
+      "explanation": "Index -1 always means the last item in a list, and here the last item is 30."
+    },
+    "hint": "Remember which number Python gives the very first position in a list.",
+    "tags": ["lists", "indexing", "negative-indexing"]
+  },
+  {
+    "id": "u6-q02",
+    "unit": 6,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "letters = ['a', 'b', 'c', 'd']\nprint(len(letters), letters[1:3])",
+    "options": [
+      { "id": "a", "text": "4 ['b', 'c']" },
+      { "id": "b", "text": "4 [b, c]" },
+      { "id": "c", "text": "4 ['b', 'c', 'd']" },
+      { "id": "d", "text": "2 ['b', 'c']" }
+    ],
+    "answer": ["a"],
+    "explanation": "The list holds 4 items, so len(letters) is 4, and the slice letters[1:3] takes indexes 1 and 2 and stops before 3, giving ['b', 'c']. When print() shows a list of words it puts single quotes around each word and a comma plus a space between them, so the exact output is 4 ['b', 'c']. The last choice is the trap of measuring the slice instead of the whole list.",
+    "analogy": "len() counts every seat in the row, while a slice is like leaning over and spotting only the two middle seats; they are two different questions about the same row.",
+    "mini": {
+      "prompt": "For letters = ['a', 'b', 'c', 'd'], what does letters[1:3] contain?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "['b', 'c']" },
+        { "id": "b", "text": "['a', 'b']" },
+        { "id": "c", "text": "['b', 'c', 'd']" },
+        { "id": "d", "text": "2" }
+      ],
+      "answer": "a",
+      "explanation": "The slice starts at index 1 and stops before index 3, so it holds exactly the items sitting at 1 and 2."
+    },
+    "hint": "Count the items in the whole list first, then work out which two items sit at indexes 1 and 2.",
+    "tags": ["lists", "len", "slicing", "printing"]
+  },
+  {
+    "id": "u6-q03",
+    "unit": 6,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank.",
+    "blank": "The list method ___() adds a new item to the end of a list.",
+    "accepted": ["append", ".append", "list.append"],
+    "explanation": "append() always adds to the very end, so [1, 2].append(3) gives [1, 2, 3] and never drops the item in the middle. It changes the list itself instead of making a copy, which is why you do not need to assign the result back with an equals sign. If you need a certain position instead, insert() is the method to reach for.",
+    "analogy": "It is like adding the last guest to the end of a queue at dinner: nobody else moves, there is simply one more person at the tail.",
+    "mini": {
+      "prompt": "The list method ___() removes the last item from a list and gives it back to you.",
+      "type": "fill-blank",
+      "accepted": ["pop", ".pop", "list.pop"],
+      "explanation": "pop() takes the last item out of the list and hands that item back, so you can store it in a variable."
+    },
+    "hint": "You already know the method that adds to the end; this one does the opposite.",
+    "tags": ["lists", "append", "methods"]
+  },
+  {
+    "id": "u6-q04",
+    "unit": 6,
+    "difficulty": "medium",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "nums = [10, 20, 30, 40, 50]\ndel nums[1]\nprint(nums, nums[-1])",
+    "options": [
+      { "id": "a", "text": "[10, 30, 40, 50] 50" },
+      { "id": "b", "text": "[10, 20, 30, 40, 50] 50" },
+      { "id": "c", "text": "[20, 30, 40, 50] 50" },
+      { "id": "d", "text": "[10, 30, 40, 50] 40" }
+    ],
+    "answer": ["a"],
+    "explanation": "del nums[1] removes the item at index 1, which is 20, and the remaining items slide together to make [10, 30, 40, 50]. The last item of that shortened list is 50, and nums[-1] always means the last item, so print shows the list and then 50. The third choice happens if you remove index 0 by mistake, and the last one if you forget that -1 means the very final item.",
+    "analogy": "Pulling the second chair out of a row makes everyone shuffle left: the row gets one shorter, and the chair at the far end is still the last chair.",
+    "mini": {
+      "prompt": "After del nums[1] is run on [10, 20, 30], what is nums?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "[10, 30]" },
+        { "id": "b", "text": "[20, 30]" },
+        { "id": "c", "text": "[10, 20]" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "a",
+      "explanation": "del removes the item at index 1, which is the 20, and the rest of the list closes the gap."
+    },
+    "hint": "Write the list out, cross off the item sitting at index 1, then read what is left over.",
+    "tags": ["lists", "del", "slicing", "negative-indexing"]
+  },
+  {
+    "id": "u6-q05",
+    "unit": 6,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "There is exactly one bug in this code. What is it?",
+    "code": "nums = [3, 1, 2]\nnums = nums.sort()\nprint(nums[0])",
+    "options": [
+      { "id": "a", "text": "sort() returns None, so nums becomes None and nums[0] fails." },
+      { "id": "b", "text": "sort() does not work on numbers, so the list must contain words instead." },
+      { "id": "c", "text": "Indexing starts at 1, so it should be nums[1] after sorting." },
+      { "id": "d", "text": "print(nums[0]) should be written as print(nums) to show the sorted list." }
+    ],
+    "answer": ["a"],
+    "explanation": "sort() puts the list in order but returns None, because it edits the list directly instead of handing a new one back. That means nums = nums.sort() overwrites the list with None: the list really did become [1, 2, 3] first, but then the variable lost it, and asking for None[0] raises a TypeError. The fix is simply nums.sort() on its own line with no equals sign.",
+    "analogy": "It is like a chef who rearranges the fridge himself and then, when you ask what he brought you, hands over an empty box: the work happened, but nothing was handed back.",
+    "mini": {
+      "prompt": "What does print([2, 1].sort()) show?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "[1, 2]" },
+        { "id": "b", "text": "None" },
+        { "id": "c", "text": "[2, 1]" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "b",
+      "explanation": "sort() changes the list in place and hands back None, so None is exactly what gets printed."
+    },
+    "hint": "Ask yourself what sort() hands back to whoever called it, and then what happens when you index that result.",
+    "tags": ["lists", "sort", "in-place", "spot-error"]
+  },
+  {
+    "id": "u6-q06",
+    "unit": 6,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each list method with what it does.",
+    "pairs": [
+      { "left": "nums.append(9)", "right": "adds 9 to the end of the list" },
+      { "left": "nums.pop()", "right": "removes the last item and gives it back" },
+      { "left": "nums.sort()", "right": "arranges the items in order and returns None" },
+      { "left": "nums.remove(9)", "right": "deletes the first item that equals 9" },
+      { "left": "nums.insert(0, 9)", "right": "puts 9 at the very front of the list" }
+    ],
+    "explanation": "append() and insert() both add items but at opposite ends, while pop() and remove() both take items away but pick them differently: pop() takes the last one by position, remove() takes the first one that equals a value. sort() is the odd one out because it works on the list itself and returns None, so never write nums = nums.sort().",
+    "analogy": "Think of a to-do list: you can add a task at the bottom, slot one at the very top, cross off the bottom task, cross off the first task mentioning milk, or rewrite the whole list in alphabetical order.",
+    "mini": {
+      "prompt": "Which method removes an item from a list and also gives that item back to you?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "remove()" },
+        { "id": "b", "text": "pop()" },
+        { "id": "c", "text": "clear()" },
+        { "id": "d", "text": "index()" }
+      ],
+      "answer": "b",
+      "explanation": "pop() both removes the last item and hands it back, so you can keep it in a variable; remove() gives nothing back."
+    },
+    "hint": "Two of these methods add items, two take items away, and one only reorders what is already there.",
+    "tags": ["lists", "methods", "match"]
+  },
+  {
+    "id": "u6-q07",
+    "unit": 6,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "fruits = ['mango', 'kiwi', 'fig']. Which expression correctly checks whether 'kiwi' is in the list?",
+    "options": [
+      { "id": "a", "text": "'kiwi' in fruits" },
+      { "id": "b", "text": "'kiwi' in fruits[0]" },
+      { "id": "c", "text": "fruits.has('kiwi')" },
+      { "id": "d", "text": "fruits.contains('kiwi')" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python uses the word in to test membership, it works the same way for lists and for strings, and it answers with True or False. fruits[0] is only the string 'mango', so the second choice checks something completely different, and lists have no has() or contains() methods, so those two choices would raise an error.",
+    "analogy": "Checking membership is like looking down a shopping list to see whether kiwi appears anywhere on it: you scan the whole list and answer yes or no.",
+    "mini": {
+      "prompt": "For fruits = ['mango', 'kiwi'], what does 'kiwi' in fruits evaluate to?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "True" },
+        { "id": "b", "text": "False" },
+        { "id": "c", "text": "1" },
+        { "id": "d", "text": "'kiwi'" }
+      ],
+      "answer": "a",
+      "explanation": "'kiwi' really is one of the items in the list, so the membership test answers True."
+    },
+    "hint": "One of these choices looks at the whole list, one looks only at the first item, and two are methods that do not exist.",
+    "tags": ["lists", "membership", "in-operator"]
+  },
+  {
+    "id": "u6-q08",
+    "unit": 6,
+    "difficulty": "medium",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Fill in the blank.",
+    "blank": "Writing [x * 2 for x in range(3)] to build a list in a single line is called a list ___.",
+    "accepted": ["comprehension"],
+    "explanation": "A list comprehension is a short way of building a list: it says what to loop over and what to collect, all in one line. The example walks through 0, 1 and 2 and collects 0, 2 and 4. It produces exactly the same list as a for loop with append(), just in fewer lines of code.",
+    "analogy": "Instead of writing a recipe with a separate line for every ingredient, a comprehension is one sentence: take two of everything in the pantry and put it in the bowl.",
+    "mini": {
+      "prompt": "[x for x in [1, 2, 3] if x > 1] builds a list by keeping only the items that pass the ___.",
+      "type": "fill-blank",
+      "accepted": ["condition", "if condition", "test"],
+      "explanation": "The if part acts as a filter, and only the items it accepts end up in the new list."
+    },
+    "hint": "The blank is one English word that starts with the same five letters as the word comprehensive.",
+    "tags": ["lists", "comprehension", "fill-blank"]
+  },
+  {
+    "id": "u6-q09",
+    "unit": 6,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What is the output of this code?",
+    "code": "matrix = [[1, 2], [3, 4], [5, 6]]\nprint(matrix[1][0], len(matrix), matrix[-1][-1])",
+    "options": [
+      { "id": "a", "text": "3 3 6" },
+      { "id": "b", "text": "1 3 6" },
+      { "id": "c", "text": "3 3 5" },
+      { "id": "d", "text": "3 2 6" }
+    ],
+    "answer": ["a"],
+    "explanation": "matrix[1] picks the second inner list, [3, 4], and the [0] after it takes that row's first item, 3. len(matrix) counts the inner lists and there are 3 of them, whereas counting items inside one row would give 2, which is the difference behind the last choice. matrix[-1][-1] walks to the last inner list [5, 6] and then its last item, 6; the third choice stops at that row's first item instead.",
+    "analogy": "A matrix is a block of flats: the first number says which floor to visit and the second says which flat on that floor, and you need both numbers to find the right person.",
+    "mini": {
+      "prompt": "For matrix = [[1, 2], [3, 4]], what is matrix[0][1]?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "2" },
+        { "id": "b", "text": "1" },
+        { "id": "c", "text": "[2, 3]" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "a",
+      "explanation": "matrix[0] is the first row [1, 2], and index 1 of that row holds the number 2."
+    },
+    "hint": "Work from the outside in: the first pair of brackets picks a row, the second pair picks an item inside that row.",
+    "tags": ["lists", "nested-lists", "indexing", "matrix"]
+  },
+  {
+    "id": "u6-q10",
+    "unit": 6,
+    "difficulty": "easy",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "There is exactly one bug in this code. What is it?",
+    "code": "name = 'Python'\nname.append('!')\nprint(name)",
+    "options": [
+      { "id": "a", "text": "name is a string, and strings have no append() method; use name + '!' instead." },
+      { "id": "b", "text": "append() only accepts numbers, so it should be name.append(33)." },
+      { "id": "c", "text": "append() would work if the quotes were swapped to double quotes." },
+      { "id": "d", "text": "There is no error; print(name) will show Python!." }
+    ],
+    "answer": ["a"],
+    "explanation": "append() belongs to lists, not to strings, and strings are immutable, so there is nothing for it to add to. Python reports AttributeError: 'str' object has no attribute 'append', which is its way of saying that name is a string and strings simply have no append(). To get an exclamation mark you build a new string instead, like name = name + '!'.",
+    "analogy": "It is like trying to glue an extra page onto a poster that has already been signed: the poster is finished, so the only option is to make a new poster with the extra page included.",
+    "mini": {
+      "prompt": "Which of these values can use the append() method?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "the string 'hi'" },
+        { "id": "b", "text": "the list [1, 2]" },
+        { "id": "c", "text": "the number 5" },
+        { "id": "d", "text": "nothing, append() does not exist" }
+      ],
+      "answer": "b",
+      "explanation": "append() is a list method; strings and numbers have no such method, so only the list can use it."
+    },
+    "hint": "Ask which of Python's built-in collections is allowed to grow by adding new items to its end.",
+    "tags": ["lists", "strings", "methods", "spot-error"]
+  },
+  {
+    "id": "u6-q11",
+    "unit": 6,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each expression with the value it produces.",
+    "pairs": [
+      { "left": "[1, 2] + [3, 4]", "right": "[1, 2, 3, 4]" },
+      { "left": "[1, 2, 3] * 2", "right": "[1, 2, 3, 1, 2, 3]" },
+      { "left": "min([5, 3, 8])", "right": "3" },
+      { "left": "sum([2, 4, 6])", "right": "12" },
+      { "left": "[10, 20, 30][1:]", "right": "[20, 30]" }
+    ],
+    "explanation": "The plus joins two lists end to end, the star repeats the whole list, min() reports the smallest number, sum() adds all the numbers together, and a slice with a blank stop runs from index 1 to the very end. Notice that plus creates a new list and never changes the originals, the same way string concatenation works.",
+    "analogy": "Two queues merging into one long line, a photocopied queue placed behind the original, a clipboard for the shortest person, and a tally of the total count: each is a different question about the same line of people.",
+    "mini": {
+      "prompt": "The built-in function ___([4, 9, 1]) returns the largest value in the list.",
+      "type": "fill-blank",
+      "accepted": ["max", "max()"],
+      "explanation": "max() looks through the list and hands back the biggest value in it."
+    },
+    "hint": "For each line, decide whether you are gluing, repeating, counting the total, picking the smallest, or cutting a slice.",
+    "tags": ["lists", "operators", "min-max-sum", "slicing", "match"]
+  },
+  {
+    "id": "u6-q12",
+    "unit": 6,
+    "difficulty": "hard",
+    "type": "mcq",
+    "boss": true,
+    "prompt": "What is the output of this code?\n\ndef tidy(items):\n    items.reverse()\n    items.sort()\n    return items\n\nnums = [3, 1, 2]\nsame = tidy(nums)\nprint(nums, same)",
+    "options": [
+      { "id": "a", "text": "[1, 2, 3] [1, 2, 3]" },
+      { "id": "b", "text": "[3, 1, 2] [3, 1, 2]" },
+      { "id": "c", "text": "[1, 2, 3] None" },
+      { "id": "d", "text": "[3, 1, 2] [1, 2, 3]" }
+    ],
+    "answer": ["a"],
+    "explanation": "A list handed to a function is the same list, not a copy, so reverse() and sort() rearrange nums itself and after the call nums really is [1, 2, 3]. The line return items hands back that very same list, so same points to it too and print shows [1, 2, 3] twice. If the function had ended with return items.sort() instead, same would be None, because sort() returns None.",
+    "analogy": "Handing your house keys to a friend does not give them a photocopy of the house: whatever they move around inside is moved around in your real house, and when they hand the keys back they are handing back that same house.",
+    "mini": {
+      "prompt": "def add_one(items):\n    items.append(1)\n    return items\n\nnums = [7]\nadd_one(nums)\nprint(nums)",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "[7]" },
+        { "id": "b", "text": "[7, 1]" },
+        { "id": "c", "text": "1" },
+        { "id": "d", "text": "an error" }
+      ],
+      "answer": "b",
+      "explanation": "The function received the real list, so the append changed nums itself and it now holds 7 and 1."
+    },
+    "hint": "Think about whether the function gets a copy of the list or the actual list, and remember what sort() hands back.",
+    "tags": ["lists", "functions", "mutation", "sort", "boss"]
+  }
+]

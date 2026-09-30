@@ -1,0 +1,36 @@
+{
+  "name": "python-adventure",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Python Adventure - a fun, game-like MCQ practice system for Python beginners",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "validate": "node questions/validate.mjs",
+    "test": "node --test \"server/test/*.test.js\"",
+    "e2e": "npm run build && node scripts/e2e.mjs",
+    "shots": "npm run build && node scripts/shots.mjs",
+    "a11y": "npm run build && node scripts/a11y.mjs",
+    "lint": "node questions/validate.mjs"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.8.4"
+  },
+  "devDependencies": {
+    "axe-core": "^4.13.0",
+    "concurrently": "^9.0.0",
+    "linkedom": "^0.18.13",
+    "playwright-core": "^1.63.0",
+    "vite": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

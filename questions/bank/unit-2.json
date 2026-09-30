@@ -1,0 +1,361 @@
+[
+  {
+    "id": "u2-q01",
+    "unit": 2,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Which line will Python accept as a variable assignment?",
+    "options": [
+      { "id": "a", "text": "2nd_place = \"Me\"" },
+      { "id": "b", "text": "my score = 10" },
+      { "id": "c", "text": "score = 10" },
+      { "id": "d", "text": "def = 20" }
+    ],
+    "answer": ["c"],
+    "explanation": "A variable name must start with a letter or an underscore, so 2nd_place is out because it starts with a digit. A name also cannot contain a space, so my score would look like two separate words, and def is one of Python's reserved keywords - words Python keeps for itself for jobs like defining functions.",
+    "analogy": "Variable names follow the same rules as picking a username: you cannot start it with a number, you cannot put a space in it, and you cannot take a name the site already reserves for itself.",
+    "mini": {
+      "prompt": "Which of these names would Python accept?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "3rd_try" },
+        { "id": "b", "text": "my-score" },
+        { "id": "c", "text": "total score" },
+        { "id": "d", "text": "total_score2" }
+      ],
+      "answer": "d",
+      "explanation": "total_score2 uses only letters, digits and underscores and does not start with a digit, while the others start with a number, contain a dash, or contain a space."
+    },
+    "hint": "Check the very first character, then look for spaces or dashes, and ask whether the word belongs to Python.",
+    "tags": ["variable names", "keywords", "syntax"]
+  },
+  {
+    "id": "u2-q02",
+    "unit": 2,
+    "difficulty": "easy",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What does this program print?",
+    "code": "count = 3\ncount = count + 4\nprint(count)",
+    "options": [
+      { "id": "a", "text": "7" },
+      { "id": "b", "text": "3" },
+      { "id": "c", "text": "count + 4" },
+      { "id": "d", "text": "An error, because count is already being used" }
+    ],
+    "answer": ["a"],
+    "explanation": "Line 1 puts 3 into the name count. Line 2 first works out the right-hand side using the old value, so count + 4 means 3 + 4 = 7, and then it stores that new 7 in count, replacing the old one. The value 3 is not kept anywhere afterwards.",
+    "analogy": "A variable is like a labelled box: you put 3 in the box, then you tip in 4 more, and now the box holds 7 - you do not get to keep the original 3 in the same box.",
+    "mini": {
+      "prompt": "After x = 5 and then x = x + 1, what value does x hold?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "5" },
+        { "id": "b", "text": "6" },
+        { "id": "c", "text": "x + 1" },
+        { "id": "d", "text": "1" }
+      ],
+      "answer": "b",
+      "explanation": "The right-hand side is worked out with the old value first, so 5 + 1 = 6, and that 6 is then stored back into x."
+    },
+    "hint": "The right-hand side is worked out with the OLD value before the new one is stored.",
+    "tags": ["assignment", "variables"]
+  },
+  {
+    "id": "u2-q03",
+    "unit": 2,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Complete the sentence about reading from the keyboard.",
+    "blank": "You use the ___() function to read something the user types.",
+    "accepted": ["input"],
+    "explanation": "input() waits for the user to type a line and press Enter, and whatever they typed comes back as a piece of text (a string). For example name = input() stores the user's typing under the name name, ready to use later.",
+    "analogy": "It is like holding out your hand and waiting for someone to hand you a note: input() does nothing at all until the other person actually gives you something.",
+    "mini": {
+      "prompt": "The function that shows a message on the screen is ___().",
+      "type": "fill-blank",
+      "accepted": ["print"],
+      "explanation": "print() sends text out to the screen, while input() takes text in from the keyboard - they do opposite jobs."
+    },
+    "hint": "Its name means the opposite of output: you are taking something in.",
+    "tags": ["input", "functions"]
+  },
+  {
+    "id": "u2-q04",
+    "unit": 2,
+    "difficulty": "easy",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "Which TWO of these values are strings (text)? (choose 2)",
+    "options": [
+      { "id": "a", "text": "\"12\"" },
+      { "id": "b", "text": "12" },
+      { "id": "c", "text": "\"hello\"" },
+      { "id": "d", "text": "3.5" }
+    ],
+    "answer": ["a", "c"],
+    "explanation": "Anything wrapped in quotation marks is a string, even when it looks like a number: \"12\" is text made of the characters 1 and 2, and Python will not do maths with it. Without the quotes, 12 is an int (a whole number) and 3.5 is a float (a decimal number).",
+    "analogy": "Think of a name label versus the real thing: 12 is twelve actual objects, while \"12\" is just a label with the digits 1 and 2 printed on it.",
+    "mini": {
+      "prompt": "Which of these is a float (a decimal number)?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "\"4.0\"" },
+        { "id": "b", "text": "4" },
+        { "id": "c", "text": "4.0" },
+        { "id": "d", "text": "400" }
+      ],
+      "answer": "c",
+      "explanation": "A float always has a decimal point, so 4.0 counts as a float even though nothing follows the point, while 4 and 400 are whole numbers and \"4.0\" is text."
+    },
+    "hint": "Look for the quotation marks first, then look for the decimal point.",
+    "tags": ["types", "str", "int", "float"]
+  },
+  {
+    "id": "u2-q05",
+    "unit": 2,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "Python stops with a NameError on line 2. What is the problem?",
+    "code": "score = 10\nscrore = scrore + 5\nprint(score)",
+    "options": [
+      { "id": "a", "text": "Line 2: scrore on the right is a typo, so that name has never been given a value" },
+      { "id": "b", "text": "Line 1: score cannot be given the value 10" },
+      { "id": "c", "text": "Line 3: print needs two arguments" },
+      { "id": "d", "text": "Line 2: you are not allowed to add 5 to a variable" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python reads the right-hand side first and looks for a name spelled scrore. Nothing has ever been stored under that exact spelling, so it raises NameError and stops. Line 1 created score, but names are exact: changing one letter makes Python look for a completely different name.",
+    "analogy": "It is like asking for Jonathan when the person in your contacts is saved as Jonathon: the phone looks for that exact spelling and finds nobody there.",
+    "mini": {
+      "prompt": "You stored a message in the name message, but you type print(mesage). Which error do you get?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "NameError" },
+        { "id": "b", "text": "SyntaxError" },
+        { "id": "c", "text": "TypeError" },
+        { "id": "d", "text": "No error, it prints the message" }
+      ],
+      "answer": "a",
+      "explanation": "Python only knows the exact name message, so the one-letter typo mesage is a name it has never heard of and it reports NameError."
+    },
+    "hint": "Compare the spelling of the name on line 2 with the spelling on line 1.",
+    "tags": ["NameError", "typos", "variable names"]
+  },
+  {
+    "id": "u2-q06",
+    "unit": 2,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each Python term with what it means.",
+    "pairs": [
+      { "left": "operand", "right": "a value that an operator works on" },
+      { "left": "operator", "right": "the symbol that does the work, like +" },
+      { "left": "expression", "right": "a piece of code that works out a value" },
+      { "left": "assignment", "right": "storing a value under a name" }
+    ],
+    "explanation": "In 5 + 3, the plus sign is the operator and 5 and 3 are the operands. An expression such as 5 + 3 can be worked out to a single value, while an assignment such as total = 5 + 3 takes that value and stores it under the name total.",
+    "analogy": "It is like a kitchen machine: the operands are the ingredients, the operator is the button you press, and the assignment is writing the result on the recipe card under a name.",
+    "mini": {
+      "prompt": "In the expression 5 + 3, what are the operands?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "5 and 3" },
+        { "id": "b", "text": "+ and 3" },
+        { "id": "c", "text": "only 5" },
+        { "id": "d", "text": "= and +" }
+      ],
+      "answer": "a",
+      "explanation": "The operands are the values the operator works on, and in 5 + 3 those are the two numbers 5 and 3."
+    },
+    "hint": "One of them is the symbol doing the work, and the others are the values around it.",
+    "tags": ["operators", "operands", "expressions", "statements"]
+  },
+  {
+    "id": "u2-q07",
+    "unit": 2,
+    "difficulty": "medium",
+    "type": "mcq",
+    "boss": false,
+    "prompt": "For text, + joins and * repeats. What does print(\"Ho\" * 3 + \"!\") put on the screen?",
+    "options": [
+      { "id": "a", "text": "HoHoHo!" },
+      { "id": "b", "text": "Ho Ho Ho !" },
+      { "id": "c", "text": "HoHoHo" },
+      { "id": "d", "text": "Ho!Ho!Ho!" }
+    ],
+    "answer": ["a"],
+    "explanation": "With text, * means repetition, so \"Ho\" * 3 glues three copies of Ho together with no spaces, giving HoHoHo. Then the + sticks the ! onto the end, which makes HoHoHo! This is different from numbers, where * would mean multiplication: with text, * copies and + joins.",
+    "analogy": "Text + is like taping two strips of paper end to end with no gap, while text * is like a photocopier set to make three copies of the same strip.",
+    "mini": {
+      "prompt": "What does the text value \"ab\" * 2 become?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "abab" },
+        { "id": "b", "text": "ab ab" },
+        { "id": "c", "text": "2ab" },
+        { "id": "d", "text": "It is an error" }
+      ],
+      "answer": "a",
+      "explanation": "Multiplying text copies it, so two copies of ab sit next to each other as abab, with no space in between."
+    },
+    "hint": "Think about what * and + do when the values on both sides are text rather than numbers.",
+    "tags": ["strings", "concatenation", "repetition", "operators"]
+  },
+  {
+    "id": "u2-q08",
+    "unit": 2,
+    "difficulty": "easy",
+    "type": "fill-blank",
+    "boss": false,
+    "prompt": "Complete the sentence about writing notes in your code.",
+    "blank": "In Python, the ___ character turns the rest of the line into a comment.",
+    "accepted": ["#", "hash", "pound", "hash sign", "hash character", "pound sign"],
+    "explanation": "Everything after a # on a line is a comment, and Python skips it completely without trying to run it. Comments are only there so a human reader can understand your code, which is why you can write anything you like after the #.",
+    "analogy": "A comment is like a note scribbled in the margin of a recipe: the chef never cooks it, it is just there to remind a person what that step is for.",
+    "mini": {
+      "prompt": "What does Python do with a line that begins with #?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "It ignores the line completely" },
+        { "id": "b", "text": "It prints the line on the screen" },
+        { "id": "c", "text": "It stops the program with an error" },
+        { "id": "d", "text": "It waits for the user to type an answer" }
+      ],
+      "answer": "a",
+      "explanation": "A # starts a comment, and Python skips the rest of that line without running or printing anything."
+    },
+    "hint": "It is the same symbol you use to label things on social media, and it sits above the number 3 on your keyboard.",
+    "tags": ["comments", "#", "syntax"]
+  },
+  {
+    "id": "u2-q09",
+    "unit": 2,
+    "difficulty": "medium",
+    "type": "spot-error",
+    "boss": false,
+    "prompt": "The user types 12 and presses Enter. Python then stops with a TypeError on line 2. Why?",
+    "code": "age = input(\"Age: \")\nprint(age + 1)",
+    "options": [
+      { "id": "a", "text": "input() gives back text, and + cannot join text with a number" },
+      { "id": "b", "text": "Line 1: input() is not allowed to show a message" },
+      { "id": "c", "text": "Line 2: the + should be replaced with a *" },
+      { "id": "d", "text": "Line 1: the user must type a number without being asked first" }
+    ],
+    "answer": ["a"],
+    "explanation": "input() always returns a string, even when the user types digits, so age holds the text \"12\". Python allows text + text because that joins them, but it refuses text + number because it does not know whether you mean joining or adding, so it raises a TypeError. Writing int(age) + 1 converts the text into a whole number first and the addition then works.",
+    "analogy": "It is like two people speaking different languages: Python will not put text and a number together until you translate one into the other with int() or str().",
+    "mini": {
+      "prompt": "After the line age = input(), what type of value is stored in age?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "int, if the user typed digits" },
+        { "id": "b", "text": "float, because typing is fast" },
+        { "id": "c", "text": "str, always" },
+        { "id": "d", "text": "It depends on the computer" }
+      ],
+      "answer": "c",
+      "explanation": "input() hands back text no matter what was typed, so even \"12\" comes back as a string until you convert it yourself."
+    },
+    "hint": "Remember what kind of value input() always returns, whatever the user happens to type.",
+    "tags": ["input", "TypeError", "type conversion"]
+  },
+  {
+    "id": "u2-q10",
+    "unit": 2,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": false,
+    "prompt": "What does this line print?",
+    "code": "print(\"Total: \" + str(2 + 3 * 4))",
+    "options": [
+      { "id": "a", "text": "Total: 14" },
+      { "id": "b", "text": "Total: 20" },
+      { "id": "c", "text": "Total: 26" },
+      { "id": "d", "text": "A TypeError, because + cannot join text and a number" }
+    ],
+    "answer": ["a"],
+    "explanation": "Python works out the maths inside the brackets first, and multiplication beats addition, so 3 * 4 is 12 and then 2 + 12 is 14. str() then turns the number 14 into the text \"14\", which lets the outer + join it onto \"Total: \" without any complaint, giving Total: 14.",
+    "analogy": "Order of operations is like the rules of a recipe: you multiply the ingredients before adding them, otherwise you end up with a different amount, and str() is the translator that lets text and numbers stand next to each other.",
+    "mini": {
+      "prompt": "Using the usual order of maths, what is 2 + 3 * 4?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "14" },
+        { "id": "b", "text": "20" },
+        { "id": "c", "text": "26" },
+        { "id": "d", "text": "24" }
+      ],
+      "answer": "a",
+      "explanation": "Multiplication is done before addition: 3 * 4 = 12 first, and then 2 + 12 = 14."
+    },
+    "hint": "Which maths operation does Python do first here, the + or the *?",
+    "tags": ["precedence", "type conversion", "composition"]
+  },
+  {
+    "id": "u2-q11",
+    "unit": 2,
+    "difficulty": "medium",
+    "type": "match",
+    "boss": false,
+    "prompt": "Match each Python tool with what it produces.",
+    "pairs": [
+      { "left": "int(\"12\")", "right": "the whole number 12" },
+      { "left": "float(\"12\")", "right": "the decimal number 12.0" },
+      { "left": "str(12)", "right": "the text \"12\"" },
+      { "left": "input()", "right": "text typed by the user" }
+    ],
+    "explanation": "int() and float() turn text into numbers, so \"12\" becomes a whole number 12 or a decimal 12.0 depending on which one you use. str() does the reverse and turns a number into text, while input() always gives you back text straight from the keyboard until you convert it yourself.",
+    "analogy": "They are like a set of adapters between two kinds of plug: int() and float() fit a text plug into a number socket, str() does the opposite, and input() always hands you the text plug.",
+    "mini": {
+      "prompt": "Which one turns the number 7 into the text \"7\"?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "int(7)" },
+        { "id": "b", "text": "str(7)" },
+        { "id": "c", "text": "float(7)" },
+        { "id": "d", "text": "input(7)" }
+      ],
+      "answer": "b",
+      "explanation": "str() is short for string, so it converts a value into text; int() and float() go the other way and make numbers."
+    },
+    "hint": "Two of these turn text into numbers, and one of them turns a number into text.",
+    "tags": ["type conversion", "int", "float", "str", "input"]
+  },
+  {
+    "id": "u2-q12",
+    "unit": 2,
+    "difficulty": "hard",
+    "type": "code-output",
+    "boss": true,
+    "prompt": "You run this program and the user types 5, presses Enter, then types 7 and presses Enter. What does it print at the end?",
+    "code": "first = input(\"First: \")\nsecond = input(\"Second: \")\nprint(first + second)",
+    "options": [
+      { "id": "a", "text": "12" },
+      { "id": "b", "text": "57" },
+      { "id": "c", "text": "5 + 7" },
+      { "id": "d", "text": "It stops with a TypeError" }
+    ],
+    "answer": ["b"],
+    "explanation": "input() hands back text, so first holds \"5\" and second holds \"7\", and + applied to two pieces of text joins them together instead of adding them, so you get 57 rather than 12. To do real maths you have to convert first: int(first) + int(second) turns both pieces of text into whole numbers before the addition happens.",
+    "analogy": "It is like writing 5 and 7 on two separate sticky notes and taping them side by side: you end up with the text 57 on one strip, not the number twelve.",
+    "mini": {
+      "prompt": "How should the last line be written so the program prints 12?",
+      "type": "mcq",
+      "options": [
+        { "id": "a", "text": "print(int(first) + int(second))" },
+        { "id": "b", "text": "print(first + second + 0)" },
+        { "id": "c", "text": "print(number(first) + number(second))" },
+        { "id": "d", "text": "print(first ++ second)" }
+      ],
+      "answer": "a",
+      "explanation": "int() converts each piece of text into a whole number, and only then can + do the addition; the other lines are not valid Python."
+    },
+    "hint": "First ask what type of value input() gives back, then ask what + does to two pieces of text.",
+    "tags": ["boss", "input", "type conversion", "concatenation"]
+  }
+]

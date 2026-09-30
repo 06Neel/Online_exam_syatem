@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1013" />
+  <meta name="description" content="Python Adventure - a friendly, game-like Python quiz for beginners." />
+  <title>Python Adventure</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <script>
+    // Pick the theme before first paint so the page never flashes dark.
+    (function () {
+      try {
+        var saved = JSON.parse(localStorage.getItem('python-adventure-v1') || '{}').theme;
+        var theme = (saved === 'dark' || saved === 'light') ? saved
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', theme === 'light' ? '#f7f7f5' : '#0f1013');
+      } catch (e) { /* private mode / no localStorage */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="/src/styles/app.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div id="app">
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <div id="toasts" aria-live="polite" aria-atomic="false"></div>
+  <div id="fx" aria-hidden="true"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: python-adventure-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://your-site.netlify.app,http://localhost:5173
+        sync: false
