@@ -207,12 +207,22 @@ async function checkKeyboard(page, label, theme, primary) {
 }
 
 // ------------------------------------------------- orchestrator
+// A toast left over from the previous action gets scanned mid-fade: axe then
+// measures its half-transparent colour and flags a contrast miss that a
+// settled screen does not have. Wait for toasts to clear before scanning.
+async function drainToasts(page) {
+  await page
+    .waitForFunction(() => !document.querySelector('.toast'), null, { timeout: 4000 })
+    .catch(() => {});
+}
+
 async function audit(page, label, opts = {}) {
   audited.add(label);
   for (const theme of THEMES) {
     await applyTheme(page, theme);
     // keyboard walk first: on timed screens the countdown keeps running meanwhile
     if (opts.primary) await checkKeyboard(page, label, theme, opts.primary);
+    await drainToasts(page);
     await runAxe(page, label, theme);
     await checkTargets(page, label, theme);
     await checkStructure(page, label, theme);

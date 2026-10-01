@@ -19,9 +19,10 @@ Read this before touching client or server code. Everything below is already imp
 | `server/sessions.js` | `Session` (`pause()/resume()`, controller bookkeeping, `lastActivity`), `SessionStore` (`restoreAll()`, `sweep()`), `judge()` |
 | `server/snapshots.js` | running-session snapshots under `<DATA_DIR>/sessions` (`PA_SESSIONS_DIR` overrides); `MAX_AGE_MS` from `SESSION_MAX_AGE_HOURS` (default 12h) |
 | `server/paths.js` | **the one place that decides where private data lives**: `DATA_DIR` (env, default `server/data`) + `TEACHERS_FILE/TEACHERS_DIR/SESSIONS_DIR/TRASH_DIR`. Runs `loadEnv()` at import so `.env` is read before any path is computed |
+| `server/store.js` | optional Postgres mirror for **teacher accounts** (`DATABASE_URL`): `initStore()` runs before `initAuth()`, fills an empty `teachers.json` from the `teachers` table, then mirrors every `TEACHERS_FILE` write into it (whole doc per write, one transaction). No `DATABASE_URL` -> off, files only; a broken database logs a warning and the app keeps running on disk |
 | `server/reports.js` | saved reports: `saveReport/listReports/getReport/deleteReport/needsReview` |
 | `server/classes.js` | per-teacher classes & sections; `server/units.js` | per-teacher unit renames |
-| `server/filesafe.js` | `withLock`, atomic `writeJsonSync/writeJson/updateJson`; `readJsonSync` falls back to the `.bak` copy when the main file is unreadable/corrupt (never on ENOENT) |
+| `server/filesafe.js` | `withLock`, atomic `writeJsonSync/writeJson/updateJson`; `readJsonSync` falls back to the `.bak` copy when the main file is unreadable/corrupt (never on ENOENT); after-write hooks (`onDataWritten`, `whenDataWritesDone`) that store.js uses to mirror `teachers.json` into Postgres - `updateJson` waits for them, so account changes are durable before the API reports success |
 | `server/index.js` | express + socket.io, HTTP API, rate limits |
 | `client/src/ui.js` | `h(tag, props, ...kids)`, `mount(root, ...nodes)`, `toast()`, `confetti()`, `climbToast()`, `modal()`, `fmtClock()`, `pct()` |
 | `client/src/net.js` | `getSocket()`, `emitAck(event, payload)`, `on(event, cb)`, `request(url, {token, body, method})` |
@@ -62,7 +63,9 @@ summaries - never from merged lists.
   `teachers/`, `trash/` and `sessions/` in one step. Default: `server/data` in the repo.
   The boot log prints the absolute folder. **On hosts that wipe files on every restart or
   redeploy (Antideploy, free tiers, scale-to-zero), the default folder is temporary**:
-  accounts/uploads/reports vanish with the container. Point `DATA_DIR` at a persistent disk
+  uploads/reports vanish with the container. Teacher **accounts** are the exception when
+  `DATABASE_URL` is set (`server/store.js`): they are mirrored into Postgres and restored into
+  `teachers.json` on the next boot. For everything else, point `DATA_DIR` at a persistent disk
   or accept that only in-memory state (running sessions are also snapshotted into `DATA_DIR`)
   lasts - see README "Hosting".
 - Atomic JSON everywhere via `server/filesafe.js` (tmp -> bak -> rename, per-path locks).

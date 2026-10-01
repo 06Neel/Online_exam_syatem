@@ -18,6 +18,7 @@ import { listReports, getReport, deleteReport, needsReview } from './reports.js'
 import { ensureDir, writeJsonSync } from './filesafe.js';
 import { loadEnv } from './env.js';
 import { initAuth, verifyToken, listTeachers } from './auth.js';
+import { initStore, storeEnabled } from './store.js';
 import { DATA_DIR } from './paths.js';
 import { router as authRouter, requireAuth } from './routes/auth.js';
 import { createAdminRouter } from './routes/admin.js';
@@ -848,12 +849,14 @@ setInterval(() => {
 }, SWEEP_MS).unref?.();
 
 async function start() {
+  await initStore();     // Postgres account mirror - no-op without DATABASE_URL
   await initAuth();
   store.restoreAll(); // quizzes that were live before a restart pick up where they left off
   http.listen(PORT, () => {
     console.log(`🐍 Python Adventure server on :${PORT}`);
     console.log(`   bank: ${loadBank().questions.length} questions`);
     console.log(`   data folder: ${DATA_DIR}`);
+    if (storeEnabled()) console.log('   accounts: mirrored to Postgres (survive redeploys)');
     if (process.env.NODE_ENV !== 'production') console.log(`   ws allowed origins: any (dev)`);
   });
 }

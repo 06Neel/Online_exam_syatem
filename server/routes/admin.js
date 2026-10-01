@@ -83,10 +83,15 @@ export function createAdminRouter(store) {
     res.json({ ok: true, active });
   });
 
-  router.delete('/teachers/:id', (req, res) => {
-    const result = deleteTeacher(req.params.id);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json({ ok: true });
+  router.delete('/teachers/:id', async (req, res) => {
+    try {
+      const result = await deleteTeacher(req.params.id);
+      if (result.error) return res.status(400).json({ error: result.error });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('[admin] delete teacher failed:', e);
+      res.status(500).json({ error: 'Could not delete the teacher.' });
+    }
   });
 
   return router;

@@ -9,7 +9,7 @@ import { createHash, randomBytes, scrypt as _scrypt, timingSafeEqual } from 'nod
 import { promisify } from 'node:util';
 import { cpSync, existsSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ensureDir, readJsonSync, updateJson, withLock, writeJsonSync } from './filesafe.js';
+import { ensureDir, readJsonSync, updateJson, whenDataWritesDone, withLock, writeJsonSync } from './filesafe.js';
 import { DATA_DIR, TEACHERS_FILE, TEACHERS_DIR, SESSIONS_DIR, TRASH_DIR } from './paths.js';
 
 // re-exported: several modules (and tests) import these from here
@@ -76,8 +76,11 @@ function load() {
   return ensureShape(readJsonSync(TEACHERS_FILE, blank()));
 }
 
-function save(data) {
+async function save(data) {
   writeJsonSync(TEACHERS_FILE, data);
+  // hold the write until after-write mirrors (Postgres) are flushed,
+  // so an account change is durable before we tell the caller it worked
+  await whenDataWritesDone();
 }
 
 export function publicTeacher(t) {
@@ -208,7 +211,7 @@ export async function login(id, password) {
   const row = data.teachers.find((t) => t.id === key);
   if (row) {
     row.lastLogin = Date.now();
-    try { save(data); } catch (e) { console.warn(`[auth] could not store last login: ${e.message}`); }
+    try { await save(data); } catch (e) { console.warn(`[auth] could not store last login: ${e.message}`); }
   }
   return { ok: true, ...issue('teacher', {
     id: teacher.id,
@@ -241,7 +244,7 @@ export async function changePassword(token, currentPassword, newPassword) {
   row.passwordHash = await hashPassword(next);
   row.mustChangePassword = false;
   row.passwordChangedAt = Date.now();
-  save(data);
+  await save(data);
 
   // every open session for this teacher keeps working, minus the password flag
   for (const entry of tokens.values()) {
@@ -336,7 +339,7 @@ export async function setTeacherActive(id, active) {
   return { ok: true };
 }
 
-export function deleteTeacher(id) {
+export async function deleteTeacher(id) {
   const key = sanitizeId(id);
   if (!key || !findTeacher(key)) return { error: 'That teacher no longer exists.' };
   const folder = teacherDir(key);
@@ -353,7 +356,7 @@ export function deleteTeacher(id) {
   }
   const data = load();
   data.teachers = data.teachers.filter((t) => t.id !== key);
-  save(data);
+  await save(data);
   for (const [token, entry] of tokens) {
     if (entry.role === 'teacher' && entry.id === key) tokens.delete(token);
   }

@@ -9,6 +9,39 @@ import { dirname } from 'node:path';
 
 const queues = new Map();
 
+// After-write hooks: used by store.js to mirror teachers.json into Postgres.
+// Hooks may return a promise; whenDataWritesDone() waits for all of them.
+const listeners = [];
+let pending = Promise.resolve();
+
+/** fn(path, data) runs after every successful write; may be async. Returns an unsubscribe. */
+export function onDataWritten(fn) {
+  listeners.push(fn);
+  return () => {
+    const i = listeners.indexOf(fn);
+    if (i >= 0) listeners.splice(i, 1);
+  };
+}
+
+/** Resolves when every hook queued so far has settled. */
+export function whenDataWritesDone() {
+  return pending;
+}
+
+function notify(path, data) {
+  for (const fn of listeners) {
+    let out;
+    try {
+      out = Promise.resolve(fn(path, data));
+    } catch (e) {
+      out = Promise.reject(e);
+    }
+    pending = pending.then(() => out).catch((e) => {
+      console.warn(`[data] after-write hook failed for ${path}: ${e.message}`);
+    });
+  }
+}
+
 /** Run fn exclusively for this file path (serialises async callers too). */
 export function withLock(path, fn) {
   const key = String(path);
@@ -49,6 +82,7 @@ export function writeJsonSync(path, data) {
     try { copyFileSync(path, bak); } catch (e) { console.warn(`[data] backup failed for ${path}: ${e.message}`); }
   }
   renameSync(tmp, path);
+  notify(path, data);
 }
 
 export function readJson(path, fallback = null) {
@@ -64,7 +98,11 @@ export function updateJson(path, fn, fallback = null) {
   return withLock(path, async () => {
     const current = readJsonSync(path, fallback);
     const next = fn(current);
-    if (next !== undefined && next !== null) writeJsonSync(path, next);
+    if (next !== undefined && next !== null) {
+      writeJsonSync(path, next);
+      // wait for after-write hooks so mirrors are durable before we report success
+      await whenDataWritesDone();
+    }
     return next;
   });
 }

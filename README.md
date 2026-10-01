@@ -147,6 +147,7 @@ See `render.yaml`. Environment variables:
 | `ADMIN_PASSWORD` | The hidden admin sign-in (see **Accounts & roles**). Set it in `.env`, never commit it |
 | `SEED_TEACHER_ID` / `SEED_TEACHER_PASSWORD` | Optional: create/refresh one teacher account on boot |
 | `DATA_DIR` | Where all private data lives (accounts, banks, reports, snapshots). Default `server/data`. Point it at a **persistent** folder on any host that wipes files on redeploy |
+| `DATABASE_URL` | Optional Postgres. When set, every teacher-account change is mirrored into a `teachers` table and loaded back on boot, so **accounts survive redeploys even when `DATA_DIR` is wiped**. Antideploy provisions this automatically (it sees `pg` in the dependencies); any Postgres (Neon, Supabase, your own) works too. Without it the app runs file-only, exactly as before |
 | `SESSION_MAX_AGE_HOURS` | A quiz with no activity for this long expires (default `12`) |
 | `PA_SESSIONS_DIR` | Optional: where running-session snapshots live (tests use their own) |
 
@@ -158,7 +159,9 @@ in the repo): teacher accounts, banks, classes, reports and running-session snap
 log prints the absolute path. If your host has a persistent disk, set `DATA_DIR` to it; otherwise
 back that folder up — see **Backing up** below. Running quizzes are snapshotted into
 `DATA_DIR/sessions/` and automatically resume after a server restart (up to
-`SESSION_MAX_AGE_HOURS`, default 12 hours old).
+`SESSION_MAX_AGE_HOURS`, default 12 hours old). When `DATABASE_URL` is set, teacher accounts get
+an extra durable copy in Postgres (boot log: `accounts: mirrored to Postgres`), restored into
+`teachers.json` automatically after any wipe.
 
 ### One host does everything (Antideploy, Render, any VPS)
 
@@ -175,11 +178,17 @@ cron/health-check at `/api/health` every few minutes (3 cron jobs per app are pl
 
 **Know what your host keeps.** Platforms like **Antideploy** give you a temporary filesystem:
 files are wiped on every restart, redeploy or scale-to-zero. With the default `DATA_DIR` that
-means teacher accounts, uploaded banks and reports **disappear whenever the app restarts**, and
-a long-running quiz cannot come back after a redeploy (it lives in memory + that folder).
-Fix either by pointing `DATA_DIR` at a persistent volume/disk, or by accepting the reset —
-the app itself never corrupts: every write is atomic (tmp → backup → rename) and a damaged
-file is recovered from its `.bak` copy on the next boot.
+means uploaded banks and reports **disappear whenever the app restarts**, and a long-running
+quiz cannot come back after a redeploy (it lives in memory + that folder).
+
+**Teacher accounts are the exception**: with `DATABASE_URL` set (Antideploy does this by
+itself — the app depends on `pg`), every sign-in, new account, password change and deletion is
+mirrored into Postgres and restored into `teachers.json` on the next boot, so accounts come
+back after every redeploy. Without `DATABASE_URL`, accounts live only on disk.
+
+For everything else, fix either by pointing `DATA_DIR` at a persistent volume/disk, or by
+accepting the reset — the app itself never corrupts: every write is atomic
+(tmp → backup → rename) and a damaged file is recovered from its `.bak` copy on the next boot.
 
 ### Classroom (no internet)
 Run `npm run dev` on the teacher laptop and let students join via `http://<teacher-ip>:5173`.
