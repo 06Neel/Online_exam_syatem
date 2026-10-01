@@ -425,9 +425,29 @@ app.get('/api/sessions/:code/report', requireAuth('teacher', 'admin'), (req, res
 });
 
 // ---------- static client (production) ----------
-if (existsSync(DIST)) {
+const INDEX_HTML = join(DIST, 'index.html');
+if (existsSync(INDEX_HTML)) {
   app.use(express.static(DIST, { index: false, maxAge: '1h' }));
-  app.get(/^\/(?!socket\.io|api\/).*/, (_req, res) => res.sendFile(join(DIST, 'index.html')));
+  app.get(/^\/(?!socket\.io|api\/).*/, (_req, res) => res.sendFile(INDEX_HTML));
+} else {
+  // No client build in this image/checkout: `dist/` is excluded from deploys
+  // and `npm run build` never ran here. Show a real message, never a blank page.
+  console.warn(`[web] client build missing at ${INDEX_HTML}`);
+  console.warn('[web] run `npm run build` before starting, or deploy the Dockerfile at the repo root.');
+  app.get(/^\/(?!socket\.io|api\/).*/, (_req, res) => res.status(200).type('html').send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Python Adventure - website not built</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0f1013; color: #e8e8ea; margin: 0; min-height: 100vh; display: grid; place-items: center; }
+  main { max-width: 34rem; padding: 2rem; line-height: 1.6; }
+  h1 { font-size: 1.35rem; }
+  code { background: #1b1d22; padding: .15em .45em; border-radius: 6px; }
+</style></head>
+<body><main>
+<h1>The server is running, but the website is not built</h1>
+<p>The API on this server answers, but <code>dist/index.html</code> is missing, so there is nothing to show in the browser.</p>
+<p><b>Fix:</b> run <code>npm run build</code> before <code>npm start</code>, or deploy the <code>Dockerfile</code> at the repository root.</p>
+</main></body></html>`));
 }
 
 // ---------- socket rate limiting ----------

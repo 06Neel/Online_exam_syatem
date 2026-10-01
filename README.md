@@ -99,7 +99,13 @@ so the rules never drift apart.
 
 ### Option A - one host does everything (recommended: Antideploy)
 
-Build once, let the Node server serve the client and the WebSockets from a single URL:
+**Deploy the `Dockerfile` at the repository root.** Antideploy detects it and builds the
+image itself, which is the whole point: `dist/` and `node_modules` are never uploaded, so a
+host that only runs `node server/index.js` would have no website to serve (blank page, while
+`/api/health` still answers 200). The Dockerfile runs `npm ci` + `npm run build`, so the
+running container always has `dist/`.
+
+Without Docker, the equivalent two lines on any Node host:
 
 ```
 npm run build     # -> dist/
@@ -109,6 +115,9 @@ node server/index.js
 Environment variables (set in the host's dashboard or `.env`): the table below. No
 `VITE_WS_URL`, no CORS origins to juggle - the browser talks to the origin it came from.
 Keep it awake with a cron/health check on `GET /api/health` every few minutes.
+
+If `dist/index.html` is missing when the server boots, it logs a warning and shows an
+explanatory page instead of a blank screen - check the logs for `client build missing`.
 
 Read **Know what your host keeps** below before you go live: on Antideploy the filesystem is
 temporary unless you attach a persistent `DATA_DIR`.

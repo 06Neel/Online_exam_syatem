@@ -1,0 +1,17 @@
+# Never copy host state into the image.
+.git
+node_modules
+dist
+
+# Runtime data: teacher accounts, uploads, sessions (and .env has secrets).
+server/data
+.env
+.env.*
+
+# Logs and editor noise
+*.log
+npm-debug.log*
+.idea
+.vscode
+.DS_Store
+Thumbs.db
