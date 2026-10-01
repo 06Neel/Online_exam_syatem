@@ -633,9 +633,9 @@ export function render(root) {
 
       h('div', { class: 'card' },
         h('div', { class: 'spread' },
-          h('h2', { style: { margin: 0 } }, 'Reopen a session'),
-          h('span', { class: 'chip' }, 'already running')),
-        h('p', { class: 'muted small' }, 'Jump back into a lobby or dashboard you closed earlier.'),
+          h('h2', { style: { margin: 0 } }, 'Live sessions'),
+          h('span', { class: 'chip' }, 'running now')),
+        h('p', { class: 'muted small' }, 'Jump back into a lobby or dashboard you closed earlier - any device, any tab.'),
         sessionsBox),
 
       h('div', { class: 'card' },

@@ -63,6 +63,10 @@ export function render(root) {
   const qNumberEl = h('span', { class: 'muted small' }, '');
 
   const questionCard = h('div', { class: 'card' });
+  const pauseBanner = h('div', { class: 'card center hide', role: 'status', style: { padding: '14px 16px', marginBottom: '12px' } },
+    h('b', { style: { fontSize: '1.05rem' } }, '⏸ Waiting for your teacher…'),
+    h('div', { class: 'muted small', style: { marginTop: '4px' } },
+      'The quiz is paused - your answer and score are safe.'));
   const feedbackSlot = h('div');
   const factSlot = h('div');
   const lbSlot = h('div');
@@ -78,6 +82,7 @@ export function render(root) {
       qNumberEl
     ),
     progressEl,
+    pauseBanner,
     questionCard,
     feedbackSlot,
     factSlot
@@ -108,6 +113,7 @@ export function render(root) {
   const renderQuestionCard = (payload) => {
     questionInfo = payload;
     answered = false;
+    pauseBanner.classList.add('hide'); // a fresh question means we are running again
     feedbackSlot.textContent = '';
     questionCard.textContent = '';
 
@@ -463,32 +469,68 @@ export function render(root) {
 
   // ---------- leaderboard ----------
   let lastLb = null;
+  let lbView = 'teams'; // team mode: 'teams' or 'players' (the Individuals view)
   const updateLeaderboard = (lb) => {
     if (!lbSlot) return;
     if (lb && lb.visible === false) {
+      lbSlot.textContent = '';
       lbSlot.appendChild(h('div', { class: 'card tight' }, h('p', { class: 'muted small', style: { margin: 0 } }, 'The teacher has hidden the leaderboard for now.')));
       return;
     }
-    const rows = lb.mode === 'team'
-      ? (lb.teams || []).map((t) => h('div', { class: 'lb-row' },
-        h('span', { class: 'rank' }, t.rank),
-        h('span', { class: 'who' }, h('b', null, `${t.name} ${t.members.length > 1 ? '👥' : ''}`),
-          h('span', null, `${t.correct} right · ${Math.round(t.accuracy * 100)}%`)),
+    const teamMode = lb.mode === 'team';
+    const showTeams = teamMode && lbView !== 'players';
+
+    const entryRow = (e) => h('div', { class: `lb-row ${e.me ? 'me' : ''}` },
+      h('span', { class: 'rank' }, rankIcon(e.rank)),
+      h('span', { class: 'who' },
+        h('b', null, e.nickname),
+        h('span', null, [
+          e.team ? `👥 ${e.team}` : (teamMode ? '🚶 Solo' : null),
+          `${e.correct} right`,
+          e.streak >= 2 ? `🔥${e.streak}` : null,
+        ].filter(Boolean).join(' · '))),
+      h('span', { class: 'pts' }, e.score),
+      h('span', { class: 'delta' }, deltaFor(e)));
+
+    const teamRow = (t) => {
+      const n = t.size ?? (t.members || []).length;
+      return h('div', { class: 'lb-row' },
+        h('span', { class: 'rank' }, rankIcon(t.rank)),
+        h('span', { class: 'who' },
+          h('b', null, `${t.name} ${n > 1 ? '👥' : ''}`),
+          h('span', null, `${(t.members || []).join(', ') || 'nobody yet'} · avg ${t.avg ?? 0}`),
+          h('span', null, `${t.correct} right · ${Math.round((t.accuracy || 0) * 100)}%`)),
         h('span', { class: 'pts' }, t.score),
-        h('span', null)))
-      : (lb.entries || []).map((e) => h('div', { class: `lb-row ${e.me ? 'me' : ''}` },
-        h('span', { class: 'rank' }, rankIcon(e.rank)),
-        h('span', { class: 'who' }, h('b', null, `${e.nickname}${e.team ? ` · ${e.team}` : ''}`),
-          h('span', null, `${e.correct} right${e.streak >= 2 ? ` · 🔥${e.streak}` : ''}`)),
-        h('span', { class: 'pts' }, e.score),
-        h('span', { class: 'delta' }, deltaFor(e))));
+        h('span', null));
+    };
+
+    const seg = (key, label) => h('button', {
+      class: 'btn small', type: 'button',
+      'aria-pressed': String(lbView === key),
+      'aria-label': key === 'teams' ? 'Show team standings' : 'Show every player individually',
+      style: lbView === key ? { fontWeight: 700 } : { opacity: 0.7 },
+      onClick: () => { lbView = key; if (lastLb) updateLeaderboard(lastLb); },
+    }, label);
+
+    const rows = teamMode
+      ? (showTeams ? (lb.teams || []).map(teamRow) : (lb.entries || []).map(entryRow))
+      : (lb.entries || []).map(entryRow);
 
     lbSlot.textContent = '';
     lbSlot.appendChild(h('div', { class: 'card tight' },
       h('div', { class: 'spread', style: { marginBottom: '10px' } },
-        h('h2', { style: { margin: 0, fontSize: '1.1rem' } }, lb.mode === 'team' ? '👥 Teams' : '🏆 Leaderboard'),
-        h('span', { class: 'chip' }, lb.mode === 'team' ? `${lb.teams.length} teams` : `${lb.total ?? (lb.entries || []).length} players`)),
+        h('h2', { style: { margin: 0, fontSize: '1.1rem' } }, teamMode ? '👥 Teams' : '🏆 Leaderboard'),
+        teamMode
+          ? h('div', { class: 'row', style: { gap: '4px' } }, seg('teams', 'Teams'), seg('players', 'Individuals'))
+          : h('span', { class: 'chip' }, `${lb.total ?? (lb.entries || []).length} players`)),
       h('div', { class: 'lb' }, rows),
+      // solo players are not a fake team - they get their own little section
+      teamMode && showTeams && (lb.solo || []).length
+        ? h('div', { style: { marginTop: '10px' } },
+          h('div', { class: 'muted small', style: { fontWeight: 700, margin: '4px 0' } },
+            `🚶 Solo players (${lb.solo.length})`),
+          h('div', { class: 'lb' }, lb.solo.map(entryRow)))
+        : null,
       lb.hidden > 0 ? h('div', { class: 'lb-hidden' }, `+ ${lb.hidden} player${lb.hidden > 1 ? 's' : ''} hidden - everyone is learning 🌱`) : null,
       h('p', { class: 'muted small', style: { margin: '10px 0 0' } }, 'Scores reward understanding first, speed second.')
     ));
@@ -542,8 +584,13 @@ export function render(root) {
     // if we joined mid-quiz the question may have arrived before this screen mounted
     if (engine.lastQuestion && !questionInfo) handleQuestion(engine.lastQuestion);
     cleanup.push(engine.on('control', (p) => {
-      if (p.action === 'pause') { clearInterval(timerHandle); toast('⏸️ The teacher paused the game', 'gold'); }
+      if (p.action === 'pause') {
+        clearInterval(timerHandle);
+        pauseBanner.classList.remove('hide');
+        toast('⏸️ The teacher paused the game', 'gold');
+      }
       if (p.action === 'resume') {
+        pauseBanner.classList.add('hide');
         toast('▶️ Back in play', '');
         if (!answered && !paced) startTimer({ endsAt }, submit);
       }
@@ -593,7 +640,26 @@ export function render(root) {
           'Great run - hang tight while the rest of the class finishes.')));
       feedbackSlot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }));
-    cleanup.push(engine.on('peer-joined', (p) => toast(`${p.nickname} joined the game 👋`, '', 1800)));
+    cleanup.push(engine.on('peer-joined', (p) => {
+      if (p?.rebind) return; // somebody reconnected - they never really left
+      toast(`${p.nickname} joined the game 👋`, '', 1800);
+    }));
+    cleanup.push(engine.on('rejoined', (res) => {
+      // back online after a drop: trust the server's view of the clock/state
+      if (res?.timerOn !== undefined) meta.timerOn = res.timerOn;
+      if (res?.selfPaced !== undefined) { meta.selfPaced = res.selfPaced; paced = !!res.selfPaced; }
+      if (res?.quizEndsAt !== undefined) { meta.quizEndsAt = res.quizEndsAt; paceOpts.quizEndsAt = res.quizEndsAt ?? null; }
+      if (res?.status === 'paused') pauseBanner.classList.remove('hide');
+      else if (res?.status === 'running') pauseBanner.classList.add('hide');
+      toast('Back online ✅', '', 1600);
+    }));
+    cleanup.push(engine.on('session-lost', (msg) => {
+      clearInterval(timerHandle);
+      clearInterval(overallHandle);
+      clearActive();
+      go('#/join');
+      toast(msg || 'This session is no longer open.', 'bad', 4500);
+    }));
   } else {
     cleanup.push(engine.on('end', (report) => {
       save({ lastReport: { ...report, meId: 'me' } });

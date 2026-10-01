@@ -9,16 +9,18 @@ import { rmSync } from 'node:fs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 3198;
 const URL = `http://localhost:${PORT}`;
-const SESSIONS_DIR = join(ROOT, 'server', 'data', 'sessions-practice-test');
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'practice-test');
+const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 globalThis.__API_BASE__ = URL;
 
 let server;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test.before(async () => {
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', PA_SESSIONS_DIR: SESSIONS_DIR },
+    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', DATA_DIR, PA_SESSIONS_DIR: SESSIONS_DIR },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server.stderr.on('data', (d) => process.stderr.write(d));
@@ -35,6 +37,7 @@ test.before(async () => {
 test.after(() => {
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* already closed */ }
   server?.kill();
+  rmSync(DATA_DIR, { recursive: true, force: true });
 });
 
 function answerFor(q) {

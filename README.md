@@ -95,12 +95,30 @@ so the rules never drift apart.
 
 ---
 
-## Deployment (Netlify + a WebSocket host)
+## Deployment
 
-Netlify serves the static client; live sessions need a long-running WebSocket server,
-so the Node server goes to a second host (Render / Railway / Fly / any VPS).
+### Option A - one host does everything (recommended: Antideploy)
 
-### 1. Client → Netlify
+Build once, let the Node server serve the client and the WebSockets from a single URL:
+
+```
+npm run build     # -> dist/
+node server/index.js
+```
+
+Environment variables (set in the host's dashboard or `.env`): the table below. No
+`VITE_WS_URL`, no CORS origins to juggle - the browser talks to the origin it came from.
+Keep it awake with a cron/health check on `GET /api/health` every few minutes.
+
+Read **Know what your host keeps** below before you go live: on Antideploy the filesystem is
+temporary unless you attach a persistent `DATA_DIR`.
+
+### Option B - split: Netlify + a WebSocket host
+
+Netlify serves the static client; the Node server goes to a second host
+(Render / Railway / Fly / any VPS).
+
+#### Client → Netlify
 - Build command: `npm run build`
 - Publish directory: `dist`
 - Environment variable: `VITE_WS_URL` = the URL of your WebSocket server,
@@ -109,24 +127,50 @@ so the Node server goes to a second host (Render / Railway / Fly / any VPS).
 
 `netlify.toml` ships the SPA redirect and security headers.
 
-### 2. Server → Render (or similar)
+#### Server → Render (or similar)
 See `render.yaml`. Environment variables:
 
 | Var | Meaning |
 |---|---|
 | `PORT` | Provided by the host |
-| `ALLOWED_ORIGINS` | Comma-separated list of your Netlify URLs (CORS) |
+| `ALLOWED_ORIGINS` | Comma-separated list of your other-origin URLs (CORS). Not needed when one host serves client + server |
 | `NODE_ENV` | `production` |
 | `ADMIN_PASSWORD` | The hidden admin sign-in (see **Accounts & roles**). Set it in `.env`, never commit it |
 | `SEED_TEACHER_ID` / `SEED_TEACHER_PASSWORD` | Optional: create/refresh one teacher account on boot |
+| `DATA_DIR` | Where all private data lives (accounts, banks, reports, snapshots). Default `server/data`. Point it at a **persistent** folder on any host that wipes files on redeploy |
+| `SESSION_MAX_AGE_HOURS` | A quiz with no activity for this long expires (default `12`) |
 | `PA_SESSIONS_DIR` | Optional: where running-session snapshots live (tests use their own) |
 
-Students then open the Netlify URL, enter the code shown on the teacher dashboard, and play.
+Students then open the server URL (Option A) or the Netlify URL (Option B), enter the code
+shown on the teacher dashboard, and play.
 
-**Persistence**: everything private lives under `server/data/` (teacher banks, classes,
-reports, session snapshots). If your host has a persistent disk, mount it there; otherwise
-back that folder up — see **Backing up** below. Running quizzes are snapshotted to
-`server/data/sessions/` and automatically resume after a server restart (up to 12 hours old).
+**Persistence**: everything private lives under one folder, `DATA_DIR` (default `server/data/`
+in the repo): teacher accounts, banks, classes, reports and running-session snapshots. The boot
+log prints the absolute path. If your host has a persistent disk, set `DATA_DIR` to it; otherwise
+back that folder up — see **Backing up** below. Running quizzes are snapshotted into
+`DATA_DIR/sessions/` and automatically resume after a server restart (up to
+`SESSION_MAX_AGE_HOURS`, default 12 hours old).
+
+### One host does everything (Antideploy, Render, any VPS)
+
+The Express server also serves the built client — no second static host and no `VITE_WS_URL`
+are needed: one URL, one process, WebSockets included.
+
+```
+npm run build     # writes dist/
+node server/index.js
+```
+
+Keep the free tier awake: the app answers `GET /api/health` with `{ok, sessions}` — point a
+cron/health-check at `/api/health` every few minutes (3 cron jobs per app are plenty).
+
+**Know what your host keeps.** Platforms like **Antideploy** give you a temporary filesystem:
+files are wiped on every restart, redeploy or scale-to-zero. With the default `DATA_DIR` that
+means teacher accounts, uploaded banks and reports **disappear whenever the app restarts**, and
+a long-running quiz cannot come back after a redeploy (it lives in memory + that folder).
+Fix either by pointing `DATA_DIR` at a persistent volume/disk, or by accepting the reset —
+the app itself never corrupts: every write is atomic (tmp → backup → rename) and a damaged
+file is recovered from its `.bak` copy on the next boot.
 
 ### Classroom (no internet)
 Run `npm run dev` on the teacher laptop and let students join via `http://<teacher-ip>:5173`.
@@ -231,9 +275,9 @@ Edit them in the app (teacher editor) or by hand in `questions/bank/*.json`, the
 Per teacher, the bank is layered (later layers win):
 
 1. `questions/bank/*.json` — the built-in 84 (shared)
-2. `server/data/questions-override.json` — legacy shared edits
-3. `server/data/teachers/<id>/overrides.json` — your edits, deletions and new questions
-4. `server/data/teachers/<id>/uploads/*.json` — your uploaded batches, in order
+2. `$DATA_DIR/questions-override.json` — legacy shared edits
+3. `$DATA_DIR/teachers/<id>/overrides.json` — your edits, deletions and new questions
+4. `$DATA_DIR/teachers/<id>/uploads/*.json` — your uploaded batches, in order
 
 ---
 
@@ -254,10 +298,12 @@ never stores or transmits them in clear.
 you work; the client also signs you out after 30 minutes of inactivity). Restarting the
 server clears all tokens — users simply sign in again.
 
-**Data layout** (everything private, never served statically):
+**Data layout** (everything private, never served statically; `$DATA_DIR` = `DATA_DIR` env,
+default `server/data`):
 
 ```
-server/data/
+$DATA_DIR/
+  teachers.json                     teacher accounts (scrypt hashes only)
   teachers/<id>/overrides.json    your question edits
   teachers/<id>/uploads/*.json    your uploaded batches
   teachers/<id>/classes.json      classes & sections
@@ -265,8 +311,14 @@ server/data/
   teachers/<id>/reports/*.json    finished reports (history/print/CSV)
   sessions/<code>.json            running sessions (auto-resume, auto-deleted on end)
   questions-override.json         legacy shared edits
+  trash/                          deleted teacher folders (recover by hand)
 ```
 
-**Backing up**: stop the server (or not — writes are atomic), copy `server/data/` and
+Every `*.json` write keeps a `.bak` of the previous good copy; if the main file is ever
+unreadable (crash mid-write, full disk), the server boots from the backup instead of
+starting empty.
+
+**Backing up**: stop the server (or not — writes are atomic), copy `$DATA_DIR` and
 `questions/bank/`, restore by copying them back. Deleting a report or closing a session
-never touches your question bank.
+never touches your question bank. Tests and the e2e/a11y/shots scripts run against their
+own throwaway `DATA_DIR`, so they never touch this folder.

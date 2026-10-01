@@ -20,7 +20,9 @@ export function getSocket() {
     path: '/socket.io',
     transports: base ? ['websocket', 'polling'] : ['websocket', 'polling'],
     reconnection: true,
-    reconnectionAttempts: 12,
+    // keep trying for a long while - a flaky classroom wifi must not boot
+    // the dashboard (or a student) out of a running quiz
+    reconnectionAttempts: 120,
     reconnectionDelay: 900,
     timeout: 8000,
   });

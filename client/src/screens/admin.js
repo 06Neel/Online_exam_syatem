@@ -207,7 +207,7 @@ export function render(root) {
   function deleteTeacher(t) {
     confirm({
       title: `Delete ${t.id}?`,
-      body: `The account is removed and ${t.name || t.id}'s folder moves to server/data/trash (recoverable by hand). Questions saved in the shared bank are not deleted.`,
+      body: `The account is removed and ${t.name || t.id}'s folder moves to the data folder's trash (recoverable by hand). Questions saved in the shared bank are not deleted.`,
       confirmLabel: 'Delete teacher',
       onConfirm: async () => {
         try {

@@ -3,16 +3,19 @@
 // (the finished report takes over). On boot the store reloads them, so a
 // server restart never swallows a live quiz.
 import { readdirSync, existsSync, unlinkSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { readJsonSync, writeJsonSync, ensureDir } from './filesafe.js';
+import { SESSIONS_DIR as DEFAULT_SESSIONS_DIR } from './paths.js';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 // tests point this at their own folder so parallel servers never share snapshots
-const SESSIONS_DIR = process.env.PA_SESSIONS_DIR || join(HERE, 'data', 'sessions');
+const SESSIONS_DIR = process.env.PA_SESSIONS_DIR || DEFAULT_SESSIONS_DIR;
 
-// half a school day - anything older is abandoned, not resumed
-export const MAX_AGE_MS = 12 * 60 * 60 * 1000;
+// how long a session may sit untouched before it is abandoned (default 12h)
+const MAX_AGE_HOURS = (() => {
+  const h = Number(process.env.SESSION_MAX_AGE_HOURS);
+  return Number.isFinite(h) && h > 0 ? h : 12;
+})();
+export const MAX_AGE_MS = Math.round(MAX_AGE_HOURS * 60 * 60 * 1000);
 
 const okCode = (code) => /^[A-Za-z0-9]{4}$/.test(String(code || ''));
 

@@ -2,13 +2,11 @@
 // delete empty custom units. Stored as JSON under data/teachers/<id>/units.json.
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { readJsonSync, writeJsonSync, ensureDir } from './filesafe.js';
 import { sanitizeId } from './auth.js';
+import { TEACHERS_DIR } from './paths.js';
 import { UNITS } from '../shared/units.js';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const TEACHERS_DIR = join(HERE, 'data', 'teachers');
 const BASE_IDS = UNITS.map((u) => u.id);
 const MAX_ID = 99;
 const MAX_UNITS = 30;

@@ -126,6 +126,40 @@ export function comparePlayers(a, b) {
   return (a.totalTime || 0) - (b.totalTime || 0);
 }
 
+/**
+ * Rank a team-mode player list AS TEAMS. Players without a team are left
+ * out (they are shown as "Solo players" instead of a fake team).
+ * Tie-breaks: total score, then higher average per member, then accuracy,
+ * then team name - so the order is always fair and deterministic.
+ * @param {Array<{team?: string|null, score?: number, nickname?: string}>} players
+ * @returns {Array<{rank:number, name:string, score:number, avg:number, accuracy:number, size:number, members:string[], correct:number, wrong:number}>}
+ */
+export function rankTeams(players) {
+  const groups = new Map();
+  for (const p of players || []) {
+    const name = p.team ? String(p.team).trim() : '';
+    if (!name) continue;
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(p);
+  }
+  const rows = [...groups.entries()].map(([name, ms]) => {
+    const sum = teamSummary(ms);
+    const size = ms.length;
+    return {
+      name,
+      ...sum,
+      size,
+      avg: size ? Math.round(sum.score / size) : 0,
+      members: ms.map((m) => m.nickname),
+    };
+  });
+  rows.sort((a, b) => (b.score - a.score)
+    || (b.avg - a.avg)
+    || (b.accuracy - a.accuracy)
+    || a.name.localeCompare(b.name));
+  return rows.map((t, i) => ({ ...t, rank: i + 1 }));
+}
+
 export function hintsUsed(p) {
   return (p.powerupsUsed || []).filter((u) => u && u.kind === 'hint').length;
 }

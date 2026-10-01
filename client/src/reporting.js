@@ -2,6 +2,7 @@
 // dashboard, the print page and the reports history.
 import { h, toast, pct, fmtClock } from './ui.js';
 import { badgeById } from '../../shared/badges.js';
+import { rankTeams } from '../../shared/scoring.js';
 import { unitName as baseUnitName } from '../../shared/units.js';
 
 const clock = (ms) => fmtClock((ms || 0) / 1000);
@@ -46,7 +47,7 @@ export function csvOf(report, unitLabel = baseUnitName) {
   out.push(line(['Student', 'Team', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (mm:ss)', 'Best streak', 'Badges', 'Needs help', 'Finished']));
   for (const p of report.players || []) {
     out.push(line([
-      p.nickname, p.team || '', p.score ?? 0, p.correct ?? 0, p.wrong ?? 0,
+      p.nickname, p.team || 'Solo', p.score ?? 0, p.correct ?? 0, p.wrong ?? 0,
       pct(p.accuracy || 0), clock(p.totalTimeMs), p.bestStreak || 0,
       (p.badges || []).map((b) => badgeById(b).name).join(' | '),
       p.needsHelp ? 'yes' : 'no',
@@ -54,6 +55,19 @@ export function csvOf(report, unitLabel = baseUnitName) {
     ]));
   }
   out.push('');
+
+  // team-mode runs: their own standings block (fair tie-breaks, member names)
+  if (cfg.teamMode) {
+    const teams = rankTeams(report.players || []);
+    if (teams.length) {
+      out.push(line(['Team standings']));
+      out.push(line(['Rank', 'Team', 'Score', 'Average per member', 'Members', 'Accuracy']));
+      for (const t of teams) {
+        out.push(line([t.rank, t.name, t.score, t.avg, t.members.join(' | '), pct(t.accuracy)]));
+      }
+      out.push('');
+    }
+  }
 
   out.push(line(['Unit', 'Accuracy', 'Correct', 'Total']));
   for (const [u, s] of Object.entries(report.unitStats || {})) {

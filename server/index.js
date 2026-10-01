@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadBank, saveQuestion, deleteQuestion, getFacts, unitsSummary, publicQuestion, ownerDirFor, recordUpload, listUploads, deleteUpload, setSummaries, getSet, appendSet, renameSet, setDisplayName, loadSetQuestions, sanitizeSettings, saveSetQuestion, removeSetQuestion, duplicateSet } from './bank.js';
 import { SessionStore } from './sessions.js';
+import { MAX_AGE_MS } from './snapshots.js';
 import { evaluateBadges, badgeById } from '../shared/badges.js';
 import { shuffleOptions, buildQuiz } from '../shared/quiz.js';
 import { validateQuestions } from '../shared/validate.js';
@@ -17,6 +18,7 @@ import { listReports, getReport, deleteReport, needsReview } from './reports.js'
 import { ensureDir, writeJsonSync } from './filesafe.js';
 import { loadEnv } from './env.js';
 import { initAuth, verifyToken, listTeachers } from './auth.js';
+import { DATA_DIR } from './paths.js';
 import { router as authRouter, requireAuth } from './routes/auth.js';
 import { createAdminRouter } from './routes/admin.js';
 
@@ -452,6 +454,7 @@ io.on('connection', (socket) => {
 
   let session = null;
   let player = null;
+  let hosted = null; // the session this socket's dashboard drives (may differ from `session`)
 
   socket.on('host:create', guard((payload, cb) => {
     const config = { ...(payload || {}) };
@@ -497,8 +500,10 @@ io.on('connection', (socket) => {
     }
     const s = store.create({ ...config, ownerId: auth.id, ownerName: auth.name });
     session = s;
+    hosted = s;
     socket.join(s.teacherRoom);
     socket.join(s.room);
+    s.addController(socket.id); // -> host:count so every dashboard knows who is driving
     cb?.({ ok: true, code: s.code, token: auth.token, config: s.config });
   }));
 
@@ -508,14 +513,16 @@ io.on('connection', (socket) => {
     const auth = verifyToken(token);
     if (!auth) return cb?.({ error: 'Please sign in again.' });
     const s = store.get(code);
-    if (!s) return cb?.({ error: 'Session not found' });
+    if (!s) return cb?.({ error: 'That session is no longer open - it may have expired. Start a new quiz from your dashboard.' });
     const owner = s.config.ownerId;
     if (owner && auth.role !== 'admin' && auth.id !== owner) {
       return cb?.({ error: 'That session belongs to another teacher.' });
     }
     session = s;
+    hosted = s;
     socket.join(s.teacherRoom);
     socket.join(s.room);
+    s.addController(socket.id);
     s.broadcastRoster();
     cb?.({
       ok: true, code: s.code, config: s.config, roster: s.rosterPayload(),
@@ -546,6 +553,16 @@ io.on('connection', (socket) => {
   socket.on('host:control', guard((payload = {}, cb) => {
     if (!session) return cb?.({ error: 'not hosting' });
     const { action } = payload;
+    // a dashboard opened elsewhere may be behind (or ahead of) the real state -
+    // tell it to resync instead of acting on what it thinks is on screen
+    const expect = payload.expect && typeof payload.expect === 'object' ? payload.expect : null;
+    if (expect && (expect.phase !== session.phase || Number(expect.qIndex) !== session.qIndex)) {
+      return cb?.({
+        ok: true, stale: true, action,
+        state: session.hostState(), roster: session.rosterPayload(),
+        stats: session.questionStatsPayload(),
+      });
+    }
     let out = { ok: true, action };
     switch (action) {
       case 'start': {
@@ -555,8 +572,16 @@ io.on('connection', (socket) => {
         if (!out.ok) out = { error: 'cannot start', action };
         break;
       }
-      case 'pause': session.togglePause(); break;
-      case 'resume': session.togglePause(); break;
+      case 'pause': {
+        const res = session.pause();
+        out = res.error ? { error: res.error, action } : { ...res, action };
+        break;
+      }
+      case 'resume': {
+        const res = session.resume();
+        out = res.error ? { error: res.error, action } : { ...res, action };
+        break;
+      }
       case 'next':
       case 'skip': {
         const moved = session.next();
@@ -627,7 +652,7 @@ io.on('connection', (socket) => {
   // ----- players -----
   socket.on('player:join', guard((payload = {}, cb) => {
     const s = store.get(payload.code);
-    if (!s) return cb?.({ error: 'That session code does not exist. Check with your teacher.' });
+    if (!s) return cb?.({ error: 'That session code does not exist. It may have expired - ask your teacher for a new code.' });
     if (s.status === 'ended') return cb?.({ error: 'This session has already finished.' });
     if (!s.config.lateJoin && (s.status === 'running' || s.status === 'paused')) {
       return cb?.({ error: 'This quiz does not accept late joins - check with your teacher.' });
@@ -640,11 +665,13 @@ io.on('connection', (socket) => {
     const ghost = [...s.players.values()].find((p) => p.nickname.toLowerCase() === nick.toLowerCase()
       && (p.socketId == null || p.status === 'disconnected'));
     session = s;
+    let rebind = false;
     if (ghost && s.players.size < 200) {
       ghost.socketId = socket.id;
       ghost.status = 'attempting';
       ghost.lastSeen = Date.now();
       player = ghost;
+      rebind = true;
       s.persist();
     } else {
       player = s.join({ nickname: payload.nickname, team: payload.team, socketId: socket.id });
@@ -660,6 +687,7 @@ io.on('connection', (socket) => {
       status: s.status,
       phase: s.phase,
       started: s.status === 'running',
+      rebind,
       leaderboard: s.leaderboardPayload(player),
       players: s.players.size,
       // question timer contract for the student's screen
@@ -670,7 +698,7 @@ io.on('connection', (socket) => {
       quizEndsAt: s.overallEndsAt ?? null,
     });
 
-    s.emitAll('player:joined', { nickname: player.nickname, count: s.players.size });
+    s.emitAll('player:joined', { nickname: player.nickname, count: s.players.size, rebind });
     s.broadcastRoster();
 
     // joining mid-quiz: hand them their question (their own if the timer is off)
@@ -689,11 +717,19 @@ io.on('connection', (socket) => {
         const q = s.currentQuestion();
         if (q) {
           const mine = s.config.shuffleOptions ? shuffleOptions(q, `${s.seed}:${player.id}`) : q;
+          // a student who already answered (re)joining mid-question gets their
+          // own recorded result back instead of a blank, re-answerable card
+          const rec = player.answered[s.qIndex];
           socket.emit('question:start', {
             qIndex: s.qIndex, total: s.quiz.length, refresher: s.currentEntry().refresher,
             unit: q.unit, boss: q.boss, question: publicQuestion(mine),
-            duration: s.timer?.duration, endsAt: s.timer?.endsAt, lateJoin: true,
+            duration: s.timer?.duration, endsAt: s.timer?.endsAt, lateJoin: !rebind,
             selfPaced: false, quizEndsAt: s.overallEndsAt,
+            review: rec ? {
+              correct: !!rec.correct, yourAnswer: rec.answer ?? null,
+              correctAnswer: q.answer ?? q.accepted ?? null,
+              accepted: q.accepted || null, pairs: q.pairs || null,
+            } : null,
           });
         }
       }
@@ -759,6 +795,9 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('disconnect', () => {
+    // a teacher tab closing / losing internet: the quiz keeps running on the
+    // server; the remaining dashboards just hear host:count drop
+    if (hosted) hosted.removeController(socket.id);
     if (session && player && session.status !== 'ended') {
       const still = [...session.players.values()].filter((p) => p.socketId === socket.id);
       still.forEach((p) => { p.status = 'disconnected'; });
@@ -776,12 +815,25 @@ setInterval(() => {
   }
 }, 8000).unref?.();
 
+// expiry sweep: sessions nobody has touched for SESSION_MAX_AGE_HOURS (12h
+// default) are dropped - snapshots older than that are already refused on boot
+const SWEEP_MS = Math.max(1000, Math.min(60_000, Math.floor(MAX_AGE_MS / 2)));
+setInterval(() => {
+  try {
+    const dropped = store.sweep();
+    if (dropped) console.log(`[sessions] expiry sweep removed ${dropped} session(s)`);
+  } catch (e) {
+    console.warn(`[sessions] sweep failed: ${e.message}`);
+  }
+}, SWEEP_MS).unref?.();
+
 async function start() {
   await initAuth();
   store.restoreAll(); // quizzes that were live before a restart pick up where they left off
   http.listen(PORT, () => {
     console.log(`🐍 Python Adventure server on :${PORT}`);
     console.log(`   bank: ${loadBank().questions.length} questions`);
+    console.log(`   data folder: ${DATA_DIR}`);
     if (process.env.NODE_ENV !== 'production') console.log(`   ws allowed origins: any (dev)`);
   });
 }

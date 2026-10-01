@@ -5,6 +5,7 @@ import { go } from '../main.js';
 import { emitAck, on, request } from '../net.js';
 import { authToken, signOut } from '../auth.js';
 import { badgeById } from '../../../shared/badges.js';
+import { rankTeams } from '../../../shared/scoring.js';
 import { unitName as baseUnitName, TYPE_LABELS } from '../../../shared/units.js';
 import { downloadCsv } from '../reporting.js';
 
@@ -52,9 +53,11 @@ export function render(root, params = {}) {
     unitStats: {},
     lb: null,
     lbHidden: false,
+    lbView: 'teams', // team mode: 'teams' or 'players' (the Individuals view)
     ended: false,
     report: null,
     bank: null,
+    hosts: 1, // how many dashboards are driving this session (host:count)
   };
 
   const isLobby = () => view.status === 'lobby' || view.phase === 'lobby';
@@ -74,6 +77,7 @@ export function render(root, params = {}) {
   }, '📋 Copy');
   const playersChip = h('span', { class: 'chip' }, '👥 0');
   const statusChip = h('span', { class: 'chip' }, '🎮 Lobby');
+  const openChip = h('span', { class: 'chip refresher hide' }, '🖥 also open elsewhere');
 
   const startBtn = mkBtn('▶ Start', 'Start the quiz', () => control('start'));
   const pauseBtn = mkBtn('⏸ Pause', 'Pause the quiz', () => control(view.status === 'paused' ? 'resume' : 'pause'));
@@ -93,7 +97,7 @@ export function render(root, params = {}) {
   }, '⎋ Sign out');
 
   const controls = h('div', { class: 'controls' },
-    codeEl, copyBtn, playersChip, statusChip,
+    codeEl, copyBtn, playersChip, statusChip, openChip,
     h('div', { class: 'row', style: { marginLeft: 'auto' } }, controlBtns, signOutBtn));
 
   // ---------- content slots ----------
@@ -358,12 +362,14 @@ export function render(root, params = {}) {
   function paintLeaderboard() {
     lbCard.textContent = '';
     const lb = view.lb;
+    const teamMode = lb?.mode === 'team';
     lbCard.append(h('div', { class: 'spread' },
-      h('h2', { style: { margin: 0 } }, lb?.mode === 'team' ? '👥 Teams' : '🏆 Leaderboard'),
-      h('span', { class: 'chip' },
-        lb?.mode === 'team'
-          ? `${(lb.teams || []).length} teams`
-          : `${lb?.total ?? (lb?.entries || []).length} players`)));
+      h('h2', { style: { margin: 0 } }, teamMode ? '👥 Teams' : '🏆 Leaderboard'),
+      teamMode
+        ? h('div', { class: 'row', style: { gap: '6px' } },
+          lbToggle('teams', '👥 Teams'),
+          lbToggle('players', '🚶 Individuals'))
+        : h('span', { class: 'chip' }, `${lb?.total ?? (lb?.entries || []).length} players`)));
 
     if (!lb) {
       lbCard.append(h('div', { class: 'empty', style: { marginTop: '12px' } },
@@ -371,24 +377,49 @@ export function render(root, params = {}) {
       return;
     }
 
-    const rows = lb.mode === 'team'
-      ? (lb.teams || []).map((t) => h('div', { class: 'lb-row' },
+    const entryRow = (e) => h('div', { class: 'lb-row' },
+      h('span', { class: 'rank' }, medal(e.rank)),
+      h('span', { class: 'who' },
+        h('b', null, e.nickname),
+        h('span', null, [
+          e.team ? `👥 ${e.team}` : (teamMode ? '🚶 Solo' : null),
+          `${e.correct ?? 0} right`,
+          (e.streak || 0) >= 2 ? `🔥${e.streak}` : null,
+        ].filter(Boolean).join(' · '))),
+      h('span', { class: 'pts' }, e.score ?? 0),
+      h('span', { class: 'delta' }, e.rank === 1 ? '👑' : ''));
+
+    const teamRow = (t) => {
+      const n = t.size ?? (t.members || []).length;
+      return h('div', { class: 'lb-row' },
         h('span', { class: 'rank' }, medal(t.rank)),
         h('span', { class: 'who' },
-          h('b', null, t.name),
-          h('span', null, `${(t.members || []).length} member${(t.members || []).length === 1 ? '' : 's'} · ${t.correct ?? 0} right · ${pct(t.accuracy || 0)}`)),
+          h('b', null, `👥 ${t.name} · ${n} ${n === 1 ? 'member' : 'members'}`),
+          h('span', null, (t.members || []).join(', ') || 'nobody yet'),
+          h('span', null, `avg ${t.avg ?? 0} · ${t.correct ?? 0} right · ${pct(t.accuracy || 0)}`)),
         h('span', { class: 'pts' }, t.score ?? 0),
-        h('span', null)))
-      : (lb.entries || []).map((e) => h('div', { class: 'lb-row' },
-        h('span', { class: 'rank' }, medal(e.rank)),
-        h('span', { class: 'who' },
-          h('b', null, e.team ? `${e.nickname} · ${e.team}` : e.nickname),
-          h('span', null, `${e.correct ?? 0} right · ${e.wrong ?? 0} wrong${(e.streak || 0) >= 2 ? ` · 🔥${e.streak}` : ''}`)),
-        h('span', { class: 'pts' }, e.score ?? 0),
-        h('span', { class: 'delta' }, e.rank === 1 ? '👑' : '')));
+        h('span', null));
+    };
+
+    const showTeams = teamMode && view.lbView !== 'players';
+    const rows = showTeams
+      ? (lb.teams || []).map(teamRow)
+      : (lb.entries || []).map(entryRow);
 
     lbCard.append(h('div', { class: 'lb', style: { marginTop: '10px' } },
-      rows.length ? rows : h('p', { class: 'muted' }, 'Nobody on the board yet.')));
+      rows.length ? rows : h('p', { class: 'muted' },
+        showTeams ? 'No teams yet - students pick a team when they join.' : 'Nobody on the board yet.')));
+
+    // solo players get their own section (team mode, Teams view)
+    if (showTeams) {
+      const solos = lb.solo || (lb.entries || []).filter((e) => !e.team);
+      if (solos.length) {
+        lbCard.append(h('h3', { style: { margin: '14px 0 4px', fontSize: '.95rem' } },
+          `🚶 Solo players (${solos.length})`));
+        lbCard.append(h('div', { class: 'lb' }, solos.map(entryRow)));
+      }
+    }
+
     if (lb.hidden > 0) {
       lbCard.append(h('div', { class: 'lb-hidden' },
         `${lb.hidden} player${lb.hidden > 1 ? 's' : ''} hidden - everyone is learning 🌱`));
@@ -396,6 +427,17 @@ export function render(root, params = {}) {
     if (lb.visible === false) {
       lbCard.append(h('div', { class: 'lb-hidden' }, 'You have the leaderboard switched off for students.'));
     }
+  }
+
+  function lbToggle(key, label) {
+    const on = view.lbView === key;
+    return h('button', {
+      class: 'btn small', type: 'button',
+      'aria-pressed': String(on),
+      'aria-label': key === 'teams' ? 'Show team standings' : 'Show every player individually',
+      style: on ? { fontWeight: 700 } : { opacity: 0.7 },
+      onClick: () => { view.lbView = key; paintLeaderboard(); },
+    }, label);
   }
 
   function updateChips() {
@@ -471,7 +513,20 @@ export function render(root, params = {}) {
     if (busy || view.joinFailed) return;
     setBusy(true);
     try {
-      const res = await emitAck('host:control', { action, ...extra });
+      const res = await emitAck('host:control', {
+        action, ...extra,
+        // what THIS screen thinks is happening - the server refuses to act on
+        // a state that has already moved on (another tab, a reconnect, ...)
+        expect: { phase: view.phase, qIndex: view.qIndex },
+      });
+      if (res?.stale) {
+        // somebody (or some other tab) already changed things: resync instead
+        if (res.roster) applyRoster(res.roster);
+        applyHostState(res.state);
+        if (res.stats) view.stats = res.stats;
+        toast('That had already changed elsewhere - dashboard refreshed', '', 2200);
+        return;
+      }
       if (res?.error) { toast(res.error, 'bad'); return; }
       if (res && res.ok === false) { toast('That did not work - try again.', 'bad'); return; }
       if (action === 'extend') toast('+10 seconds ⏱️', 'gold', 1500);
@@ -493,7 +548,15 @@ export function render(root, params = {}) {
     const next = !timerOn();
     setBusy(true);
     try {
-      const res = await emitAck('host:control', { action: 'timer', on: next });
+      const res = await emitAck('host:control', {
+        action: 'timer', on: next, expect: { phase: view.phase, qIndex: view.qIndex },
+      });
+      if (res?.stale) {
+        if (res.roster) applyRoster(res.roster);
+        applyHostState(res.state);
+        toast('That had already changed elsewhere - dashboard refreshed', '', 2200);
+        return;
+      }
       if (res?.error) { toast(res.error, 'bad'); return; }
       if (view.config) view.config.timerOn = res.timerOn ?? next;
       if (res?.effective === 'next question') {
@@ -635,6 +698,22 @@ export function render(root, params = {}) {
 
   cleanup.push(on('quiz:end', (p) => showReport(p?.report)));
 
+  // several devices can drive the same quiz - say so, and never double-jump
+  cleanup.push(on('host:count', (p) => {
+    if (destroyed || view.ended || view.joinFailed) return;
+    const n = Number(p?.count) || 1;
+    const wasAlone = view.hosts <= 1;
+    view.hosts = n;
+    openChip.classList.toggle('hide', n <= 1);
+    if (n > 1 && wasAlone) toast('This dashboard is open on another device too', 'gold', 2600);
+  }));
+
+  // the socket dropped and came back: re-bind this dashboard to the session
+  cleanup.push(on('connect', () => {
+    if (destroyed || view.ended || view.joinFailed || !view.joined) return;
+    joinSession(true).catch(() => { /* joinSession reports its own errors */ });
+  }));
+
   cleanup.push(on('question:start', (p) => {
     if (destroyed || view.ended || !p) return;
     view.qmeta = p;
@@ -686,9 +765,30 @@ export function render(root, params = {}) {
     lobbyNames.append(...slice.map((n) => h('span', { class: 'chip' }, `👋 ${n}`)));
   }
 
-  emitAck('host:join', { code, token: authToken() }).then((res) => {
+  // ---------- boot: join (and re-join after a dropped connection) ----------
+  /** Apply the authoritative session state carried by a join/stale response. */
+  function applyHostState(st) {
+    if (!st || destroyed || view.ended) return;
+    if (st.status) view.status = st.status;
+    if (st.phase) view.phase = st.phase;
+    if (typeof st.qIndex === 'number') view.qIndex = st.qIndex;
+    if (typeof st.total === 'number') view.total = st.total;
+    if (st.question && typeof st.qIndex === 'number' && st.qIndex >= 0) {
+      view.qmeta = { ...(st.meta || {}), question: st.question, qIndex: st.qIndex, total: st.total };
+    }
+    paintQuestion();
+    paintStruggling();
+    paintLeaderboard();
+    sync();
+  }
+
+  async function joinSession(rebind = false) {
+    const res = await emitAck('host:join', { code, token: authToken() });
     if (destroyed) return;
-    if (res?.error || !res?.ok) { joinError(res?.error || 'That session could not be opened.'); return; }
+    if (res?.error || !res?.ok) {
+      joinError(res?.error || 'That session could not be opened.');
+      return;
+    }
     view.joined = true;
     view.config = res.config || null;
     sessionUnitNames = view.config?.unitNames || null;
@@ -700,24 +800,19 @@ export function render(root, params = {}) {
       if (Array.isArray(res.stats.missed)) view.missed = res.stats.missed;
       if (res.stats.unitStats) view.unitStats = res.stats.unitStats;
     }
-    // resumed mid-run (page refresh, or the server restarted): restore phase + question
-    const st = res.state;
-    if (st) {
-      if (st.status) view.status = st.status;
-      if (st.phase) view.phase = st.phase;
-      if (typeof st.qIndex === 'number') view.qIndex = st.qIndex;
-      if (typeof st.total === 'number') view.total = st.total;
-      if (st.question && typeof st.qIndex === 'number' && st.qIndex >= 0) {
-        view.qmeta = { ...(st.meta || {}), question: st.question, qIndex: st.qIndex, total: st.total };
-      }
-    }
+    // resumed mid-run (page refresh, a reconnect, or a server restart):
+    // restore phase + question from the server's own view
+    applyHostState(res.state);
     paintQuestion();
     paintStruggling();
     paintLeaderboard();
     sync();
     if (view.status === 'ended') fetchReport();
-  }).catch((e) => {
-    if (!destroyed) joinError(e.message || 'Could not reach the server.');
+    if (rebind) toast('Dashboard reconnected ✅', '', 1600);
+  }
+
+  joinSession(false).catch((e) => {
+    if (!destroyed && !view.joinFailed) joinError(e.message || 'Could not reach the server.');
   });
 }
 
@@ -815,7 +910,7 @@ export function reportView(report) {
     tbody.textContent = '';
     tbody.append(...list.map((p) => h('tr', { class: p.needsHelp ? 'needs' : null },
       h('td', null, h('b', null, p.nickname)),
-      h('td', null, p.team || '—'),
+      h('td', null, p.team || 'Solo'),
       h('td', { class: 'num' }, p.score ?? 0),
       h('td', { class: 'num' }, p.correct ?? 0),
       h('td', { class: 'num' }, p.wrong ?? 0),
@@ -842,6 +937,10 @@ export function reportView(report) {
     : null;
   // this run's own unit names first, then whatever the syllabus says
   const reportUnitName = (u) => (report.config?.unitNames && report.config.unitNames[u]) || unitName(u);
+  // team standings: prefer what the server stored, recompute for old reports
+  const teams = report.config?.teamMode
+    ? (Array.isArray(report.teams) && report.teams.length ? report.teams : rankTeams(players))
+    : [];
   // self-paced runs: how long each student sat on each question (teacher only)
   const timeRows = players.filter((p) => Array.isArray(p.answerTimes));
   const showTimes = report.config?.timerOn === false
@@ -875,6 +974,26 @@ export function reportView(report) {
         h('span', { class: 'chip' }, `${players.length} player${players.length === 1 ? '' : 's'}`)),
       h('p', { class: 'muted small' }, 'Click Score, Correct or Accuracy to sort.'),
       h('div', { class: 'table-wrap', style: { marginTop: '8px' } }, h('table', null, thead, tbody))),
+
+    teams.length
+      ? h('div', { class: 'card' },
+        h('div', { class: 'spread' },
+          h('h2', { style: { margin: 0 } }, '🏆 Team standings'),
+          h('span', { class: 'chip' }, `${teams.length} team${teams.length === 1 ? '' : 's'}`)),
+        h('p', { class: 'muted small' }, 'Team score is the sum of every member - solo players rank individually in the table above.'),
+        h('div', { class: 'table-wrap', style: { marginTop: '8px' } },
+          h('table', null,
+            h('thead', null, h('tr', null,
+              ['Rank', 'Team', 'Score', 'Avg per member', 'Accuracy', 'Members']
+                .map((t, i) => h('th', { scope: 'col', class: i === 0 || i === 2 || i === 3 || i === 4 ? 'num' : '' }, t)))),
+            h('tbody', null, teams.map((t) => h('tr', null,
+              h('td', { class: 'num' }, `#${t.rank}`),
+              h('td', null, h('b', null, `👥 ${t.name}`)),
+              h('td', { class: 'num' }, t.score ?? 0),
+              h('td', { class: 'num' }, t.avg ?? 0),
+              h('td', { class: 'num' }, pct(t.accuracy || 0)),
+              h('td', null, (t.members || []).join(', ') || '—')))))))
+      : null,
 
     showTimes
       ? h('div', { class: 'card' },

@@ -76,6 +76,17 @@ export function render(root) {
     if (p.action === 'pause') toast('⏸️ Paused by teacher', 'gold');
   }));
 
+  unsubs.push(engine.on('rejoined', (res) => {
+    // back online in the lobby: if the quiz started while we were away, follow
+    if (res?.started) { meta.started = true; toast('The game has started!', 'gold'); go('#/play'); }
+  }));
+
+  unsubs.push(engine.on('session-lost', (msg) => {
+    clearActive();
+    go('#/join');
+    toast(msg || 'This session is no longer open.', 'bad', 4500);
+  }));
+
   unsubs.push(engine.on('end', () => {
     clearActive();
     go('#/results');

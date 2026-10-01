@@ -28,6 +28,13 @@ export function readJsonSync(path, fallback = null) {
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch (e) {
     if (e && e.code === 'ENOENT') return fallback;
+    // main file is unreadable/corrupt (crash mid-write, full disk, ...):
+    // every write keeps a .bak of the previous good copy - use it
+    try {
+      const parsed = JSON.parse(readFileSync(`${path}.bak`, 'utf8'));
+      console.warn(`[data] ${path} was unreadable - recovered from the .bak copy`);
+      return parsed;
+    } catch { /* no usable backup either */ }
     console.warn(`[data] could not read ${path}: ${e.message}`);
     return fallback;
   }

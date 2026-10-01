@@ -6,7 +6,7 @@ Read this before touching client or server code. Everything below is already imp
 
 | File | Purpose |
 |---|---|
-| `shared/scoring.js` | `scoreAnswer()`, `teamSummary()`, `comparePlayers()`, `comparePlayersSelfPaced()`, `hintsUsed()`, point constants |
+| `shared/scoring.js` | `scoreAnswer()`, `teamSummary()`, `rankTeams()`, `comparePlayers()`, `comparePlayersSelfPaced()`, `hintsUsed()`, point constants |
 | `shared/badges.js` | `BADGES`, `TOPIC_BADGES`, `evaluateBadges()`, `badgeById()`, `ENCOURAGEMENTS` |
 | `shared/quiz.js` | `buildQuiz()`, `chooseRefreshers()`, `shuffleOptions()`, `timerFor()`, `strengthMap()`, `BAND_INFO` |
 | `shared/rng.js` | seeded RNG |
@@ -16,11 +16,12 @@ Read this before touching client or server code. Everything below is already imp
 | `server/auth.js` | scrypt passwords, in-memory tokens (60-min sliding), lockouts, admin via `ADMIN_PASSWORD` |
 | `server/routes/auth.js` | `/api/auth/*` (login, logout, me, change-password) |
 | `server/routes/admin.js` | `/api/admin/*` (admin-only, 404 otherwise) |
-| `server/sessions.js` | `Session`, `SessionStore` (`restoreAll()`), `judge()` |
-| `server/snapshots.js` | running-session snapshots under `data/sessions/` (`PA_SESSIONS_DIR` overrides) |
+| `server/sessions.js` | `Session` (`pause()/resume()`, controller bookkeeping, `lastActivity`), `SessionStore` (`restoreAll()`, `sweep()`), `judge()` |
+| `server/snapshots.js` | running-session snapshots under `<DATA_DIR>/sessions` (`PA_SESSIONS_DIR` overrides); `MAX_AGE_MS` from `SESSION_MAX_AGE_HOURS` (default 12h) |
+| `server/paths.js` | **the one place that decides where private data lives**: `DATA_DIR` (env, default `server/data`) + `TEACHERS_FILE/TEACHERS_DIR/SESSIONS_DIR/TRASH_DIR`. Runs `loadEnv()` at import so `.env` is read before any path is computed |
 | `server/reports.js` | saved reports: `saveReport/listReports/getReport/deleteReport/needsReview` |
 | `server/classes.js` | per-teacher classes & sections; `server/units.js` | per-teacher unit renames |
-| `server/filesafe.js` | `withLock`, atomic `writeJsonSync/writeJson/updateJson` |
+| `server/filesafe.js` | `withLock`, atomic `writeJsonSync/writeJson/updateJson`; `readJsonSync` falls back to the `.bak` copy when the main file is unreadable/corrupt (never on ENOENT) |
 | `server/index.js` | express + socket.io, HTTP API, rate limits |
 | `client/src/ui.js` | `h(tag, props, ...kids)`, `mount(root, ...nodes)`, `toast()`, `confetti()`, `climbToast()`, `modal()`, `fmtClock()`, `pct()` |
 | `client/src/net.js` | `getSocket()`, `emitAck(event, payload)`, `on(event, cb)`, `request(url, {token, body, method})` |
@@ -56,9 +57,19 @@ summaries - never from merged lists.
 
 ## Files & persistence
 
+- **Storage root**: every private file lives under `DATA_DIR` (`server/paths.js`), one place to
+  redirect: `DATA_DIR=/var/lib/python-adventure` (env or `.env`) moves `teachers.json`,
+  `teachers/`, `trash/` and `sessions/` in one step. Default: `server/data` in the repo.
+  The boot log prints the absolute folder. **On hosts that wipe files on every restart or
+  redeploy (Antideploy, free tiers, scale-to-zero), the default folder is temporary**:
+  accounts/uploads/reports vanish with the container. Point `DATA_DIR` at a persistent disk
+  or accept that only in-memory state (running sessions are also snapshotted into `DATA_DIR`)
+  lasts - see README "Hosting".
 - Atomic JSON everywhere via `server/filesafe.js` (tmp -> bak -> rename, per-path locks).
+  `readJsonSync` recovers from the `.bak` copy if the main file is unreadable (a crash can
+  otherwise leave a truncated file that boots the app empty-handed).
 - Per-teacher bank layers (later wins): `questions/bank/*.json` ->
-  `server/data/questions-override.json` -> `teachers/<id>/overrides.json`
+  `$DATA_DIR/questions-override.json` -> `teachers/<id>/overrides.json`
   (tombstones `__deleted`) -> `teachers/<id>/uploads/*.json`.
 - **Question banks**: every upload batch is its own bank (`teachers/<id>/uploads/<file>.json`,
   id = file stem). The pseudo-bank `default` = base + override layers only (never uploads).
@@ -74,12 +85,15 @@ summaries - never from merged lists.
   named/missing units get bank-local ids starting at 100 (syllabus = 1-7, teacher custom = 8-99).
   Missing units collapse into `Uncategorized` (renamable via `PUT /api/sets/:id`).
 - **Session snapshots**: every mutating session call writes
-  `data/sessions/<code>.json` (`snapshot()` - players with `socketId:null`, quiz entries,
-  stats, timers as `endsAt`). `SessionStore.restoreAll()` runs at boot: restores sessions
-  <12h old, re-arms question/reveal timers, drops `ended`/stale files. `end()` drops the
+  `<DATA_DIR>/sessions/<code>.json` (`snapshot()` - players with `socketId:null`, quiz entries,
+  stats, timers as `endsAt`, plus `lastActivity` for the expiry sweep). `SessionStore.restoreAll()`
+  runs at boot: restores sessions <`SESSION_MAX_AGE_HOURS` old (default 12h), re-arms
+  question/reveal timers, drops `ended`/stale files. A timer sweep drops any session nobody has
+  touched for that long (ended sessions are kept for the live report view). `end()` drops the
   snapshot (the report takes over); `host:close` deletes both memory + file.
   On `player:join`, a player with the same nickname and a dead socket is **rebound**
-  (keeps score/id) instead of duplicated - covers page refresh and server restart.
+  (keeps score/id) instead of duplicated - covers page refresh, a dropped connection and a
+  server restart. Rebind acks and `player:joined` carry `rebind:true` so the UI stays quiet.
 - **Reports**: `end()` also writes `teachers/<id>/reports/<code>.json`
   (`saveReport`), powering `GET /api/reports*`, `DELETE /api/reports/:code`
   and `GET /api/needs-review` (questions with missRate ≥50% over recent runs).
@@ -91,9 +105,9 @@ summaries - never from merged lists.
 | Event (client -> server) | Payload | Ack reply |
 |---|---|---|
 | `host:create` | `{title, units:[1..7], count, difficulty, teamMode, hideBottom, revealSeconds, mode:'live'\|'practice', timers:{easy,medium,hard,bossExtra}, points:{easy,medium,hard,boss}, shuffleOptions, allowHints, allowPowerups, lateJoin, opensAt, classId, className, section, questionIds?, setId?, useFacts, revisionRounds, leaderboardToStudents, timerOn, commonSeconds?, quizSeconds?, allowBack?, allowSkip?, token}` | `{ok, code, token, config}` (server stamps `ownerId/ownerName`; `config` carries the binding `setId/setName/setCount/unitNames` - `unitNames: null` for `default` = syllabus names) |
-| `host:join` | `{code, token}` | `{ok, code, config, roster, stats, state}` - `state = hostState()`: `{status, phase, qIndex, total, endsAt, selfPaced, timerOn, question?, meta?}` so a refreshed/restarted teacher lands on the live question; the set binding in `config` never changes while the session lives |
+| `host:join` | `{code, token}` | `{ok, code, config, roster, stats, state}` - `state = hostState()`: `{status, phase, qIndex, total, endsAt, selfPaced, timerOn, question?, meta?}` so a refreshed/restarted teacher lands on the live question; the set binding in `config` never changes while the session lives. Joins register a **controller**: the socket id is tracked server-side and every change broadcasts `host:count` to the teacher room (see below), so several devices can watch/control one quiz |
 | `host:start` | - | `{ok, total}` |
-| `host:control` | `{action, seconds?, on?}` | `{ok, action, report?}` (gates: scheduled `opensAt` blocks start) |
+| `host:control` | `{action, seconds?, on?, expect?:{phase, qIndex}}` | `{ok, action, report?}` (gates: scheduled `opensAt` blocks start). **Staleness**: when `expect` is sent and the server has moved on (auto-reveal already fired, someone else advanced), the ack comes back `{ok:true, stale:true, action, state, roster, stats}` instead of acting - the client applies the fresh state and shows "already moved on". `pause`/`resume` are directional and idempotent: pausing a paused quiz answers `{ok, unchanged:true}` (never flips back) |
 | `host:end` | - | `{ok, report}` (report is saved to `teachers/<id>/reports/<code>.json`) |
 | `host:close` | - | `{ok}` (drops the session **and** its snapshot) |
 
@@ -108,6 +122,14 @@ no `setId` = legacy merged-bank behaviour. The default bank answers from the bui
 `reveal-mistake` (anonymous most-chosen wrong answer, emitted as `class:mistake` to everyone)
 `show-answer` (emits `answer:shown`) `end`
 `timer` (`{on:bool}` flips the Question Timer switch: ack `{ok, timerOn, effective:'now'|'next question', error?}`).
+`pause`/`resume` only move forwards (`session.pause()` on an already-paused quiz is a no-op that
+still acks ok); the old `togglePause()` helper remains for compatibility but no longer flips.
+
+**Reconnects**: the client re-emits `host:join` (teacher) / `player:join` (student) whenever the
+socket reconnects (`connect` event) - a closed laptop, a network blip or a server restart all
+land back in the same session with score intact. Students on the lobby/play screens show a
+persistent "Waiting for your teacher..." banner while paused, and a friendly `session-lost`
+error when the quiz has really expired (they are sent back to `#/join`).
 
 **Question timer**: `timerOn:true` (default) = one shared countdown per question
 (`timerFor(q, timers, commonSeconds)`: per-question `timeLimit` (1-300s) > `commonSeconds`
@@ -128,7 +150,7 @@ HTTP call to `/api/bank` (GET list, POST save, DELETE /:id). Persist it in `stor
 
 | Event | Payload | Notes |
 |---|---|---|
-| `player:join` | `{code, nickname, team?}` | `{ok, playerId, code, title, teamMode, status, phase, started, leaderboard, players, timerOn, selfPaced, allowBack, allowSkip, quizEndsAt}` + `question:start` (or `player:finished`) when joining mid-question. **Rebind**: same nickname + a dead socket (refresh/restart) returns the *existing* `playerId` with score intact instead of a duplicate. Rejects: unknown code, ended session, `lateJoin:false` while running, full room (200). |
+| `player:join` | `{code, nickname, team?}` | `{ok, playerId, rebind?, code, title, teamMode, status, phase, started, leaderboard, players, timerOn, selfPaced, allowBack, allowSkip, quizEndsAt}` + `question:start` (or `player:finished`) when joining mid-question. **Rebind**: same nickname + a dead socket (refresh/restart/drop) returns the *existing* `playerId` with score intact instead of a duplicate, and sets `rebind:true` on the ack/`player:joined` (the UI skips the "joined" toast; a mid-question rebind also gets a `review` payload for a question already answered). Rejects: unknown code / expired session (`That session code does not exist...`), ended session, `lateJoin:false` while running, full room (200). |
 | `player:answer` | `{qIndex, answer}` | `{result}` or `{error}` |
 | `player:advance` | `{skip?}` | self-paced Next/Skip: `{ok, qIndex, total}` or `{error}` (answer-first, `allowSkip`, finished and not-currently-paced guards) |
 | `player:goto` | `{qIndex}` | self-paced Back: `{ok, qIndex, review}` or `{error}` (`allowBack` guard; answered questions come back read-only; only earlier indexes) |
@@ -141,7 +163,8 @@ HTTP call to `/api/bank` (GET list, POST save, DELETE /:id). Persist it in `stor
 |---|---|
 | `roster` (teacher room) | `{players:[{id,nickname,team,score,qIndex,answered,finished,answeredCount,status:'attempting'\|'idle'\|'disconnected',correct,wrong,streak,rank,badges}], phase, qIndex, total, status, selfPaced, timerOn}` |
 | `question:stats` (teacher) | `{qIndex, prompt, type, counts:{optionId:n}, correct, wrong, answered, options, answer, revealing, selfPaced, answeredTotal, finishedCount, playersTotal, missed:[{index,id,missRate,total}], unitStats:{[unit]:{correct,total,accuracy}}}` |
-| `leaderboard` | `{mode:'solo', entries:[{id,nickname,team,score,rank,correct,wrong,streak,badges,me}], hidden, total, visible}` or `{mode:'team', teams:[{name,score,correct,accuracy,members,rank}], entries, ...}` |
+| `leaderboard` | `{mode:'solo', entries:[{id,nickname,team,score,rank,correct,wrong,streak,badges,me}], hidden, total, visible}` or `{mode:'team', teams:[{name,score,avg,correct,accuracy,members:[nickname],rank}], solo:[entries of players without a team], entries, hidden:0, visible, total}` - team mode never fakes a `Solo` team, so Individuals view + Solo players section both work off the same payload |
+| `host:count` (teacher room) | `{n}` - how many teacher sockets currently control this session (rebinds and second devices). The dashboard shows an "also open elsewhere" chip at `n > 1` |
 | `question:start` | `{qIndex,total,question:{...public},duration,endsAt,refresher,unit,unitLabel,boss,selfPaced,quizEndsAt,playerId?}` - self-paced adds `duration:null, endsAt:null, allowBack, allowSkip` and `review:{correct,yourAnswer,correctAnswer,accepted,pairs}?` when the student already answered this index. `unitLabel` = the set's display name for `unit` (null falls back to the syllabus name client-side) |
 | `question:reveal` | `{qIndex,correctAnswer,accepted,pairs,stats,distribution,explanation,analogy,mini,fact:{kind,text},endsAt}` (shared questions only - never in self-paced mode) |
 | `question:sync` | `{endsAt, extended?}` |
@@ -168,9 +191,18 @@ HTTP call to `/api/bank` (GET list, POST save, DELETE /:id). Persist it in `stor
                 correct, wrong, missRate, avgTimeMs }],
   unitStats: {[unit]:{correct,total,accuracy}},
   weakUnits: [], struggling: [{id,prompt,missRate}],
+  teams: [{name,score,avg,correct,wrong,accuracy,members:[nickname],rank}],  // teamMode only
   needsHelp: [nickname], totals: {players, answers, correct, accuracy}
 }
 ```
+
+**Team standings** (`rankTeams(players)`, `shared/scoring.js`): players are grouped by their
+trimmed `team` name (players without one are *not* folded into a fake team - they stay solo).
+Ranking is fair and deterministic: higher **team total** first, then higher **average per
+member** (so a small team that scored well per head beats a big sloppy one), then accuracy,
+then the team name (case-insensitive) so equal teams never swap places between renders.
+`members` are the players' nicknames - shown on the live board, the results screen, the
+report and the CSV (`Team` column, `Solo` for unteamed players).
 
 ## HTTP API
 

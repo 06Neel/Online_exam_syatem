@@ -13,10 +13,12 @@ const BASE = `http://localhost:${PORT}`;
 const SEED_ID = 'shots-teacher';
 const SEED_PW = 'shots-pass-123';
 const ADMIN_PW = 'shots-admin-secret';
-const SESSIONS_DIR = join(ROOT, 'server', 'data', 'sessions-shots');
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'shots-test');
+const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 mkdirSync(OUT, { recursive: true });
-rmSync(SESSIONS_DIR, { recursive: true, force: true });
+rmSync(DATA_DIR, { recursive: true, force: true });
 
 const shot = (page, name) => page.screenshot({ path: join(OUT, `${name}.png`), animations: 'disabled', timeout: 15000 });
 
@@ -33,6 +35,7 @@ let server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     ...process.env,
     PORT: String(PORT),
     NODE_ENV: 'production',
+    DATA_DIR,
     PA_SESSIONS_DIR: SESSIONS_DIR,
     SEED_TEACHER_ID: SEED_ID,
     SEED_TEACHER_PASSWORD: SEED_PW,
@@ -175,5 +178,6 @@ try {
   await browser.close();
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* closed */ }
   server?.kill();
+  rmSync(DATA_DIR, { recursive: true, force: true });
   process.exit(process.exitCode || 0);
 }

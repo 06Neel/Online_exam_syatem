@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto';
 import { loadBank, publicQuestion, getFacts, loadSetQuestions, setDisplayName } from './bank.js';
 import { saveReport } from './reports.js';
 import { buildQuiz, shuffleOptions, timerFor, MAX_REFRESHERS_PER_LEVEL } from '../shared/quiz.js';
-import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, teamSummary } from '../shared/scoring.js';
+import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, rankTeams } from '../shared/scoring.js';
 import { evaluateBadges, badgeById, ENCOURAGEMENTS } from '../shared/badges.js';
 import { saveSnapshot, dropSnapshot, loadSnapshots, MAX_AGE_MS } from './snapshots.js';
 import { unitName as baseUnitName, DEFAULT_SET_NAME } from '../shared/units.js';
@@ -151,6 +151,21 @@ export class Session {
     this.lastFacts = { bugs: null, didYouKnow: null };
     this.revisionFor = new Set(); // units that already got a revision round
     this.setBank = null;          // Map id -> question once a set-bound quiz loads
+    this.controllers = new Set(); // teacher sockets currently driving this session
+    this.lastActivity = Date.now(); // last mutation - the expiry sweep keys off this
+  }
+
+  // ---------- teacher controllers (one dashboard, or several) ----------
+  addController(socketId) {
+    if (!socketId) return;
+    this.controllers.add(socketId);
+    this.io.to(this.teacherRoom).emit('host:count', { count: this.controllers.size });
+  }
+
+  removeController(socketId) {
+    if (this.controllers.delete(socketId)) {
+      this.io.to(this.teacherRoom).emit('host:count', { count: this.controllers.size });
+    }
   }
 
   // ---------- snapshots (survive a server restart) ----------
@@ -190,6 +205,7 @@ export class Session {
 
   persist() {
     if (this.status === 'ended') return;
+    this.lastActivity = Date.now(); // anything worth saving keeps the session young
     try {
       saveSnapshot(this.code, this.snapshot());
     } catch (e) {
@@ -232,6 +248,7 @@ export class Session {
   static restore(snap, io) {
     const s = new Session(snap.code, snap.config || {}, io);
     s.seed = snap.seed || s.seed;
+    s.lastActivity = snap.savedAt || Date.now(); // idle time does not reset across a restart
     s.status = snap.status || 'lobby';
     s.phase = snap.phase || 'lobby';
     s.qIndex = Number.isInteger(snap.qIndex) ? snap.qIndex : -1;
@@ -879,59 +896,66 @@ export class Session {
     return true;
   }
 
-  togglePause() {
-    if (this.status === 'running') {
-      // work out what is left BEFORE the timers are torn down
-      const remaining = this.phase === 'question'
-        ? Math.max(0, (this.timer?.endsAt || Date.now()) - Date.now())
-        : Math.max(0, (this.phaseEndsAt || Date.now()) - Date.now());
-      this.status = 'paused';
-      this.pausedAt = Date.now();
-      if (this.overallEndsAt) this.overallPausedRemaining = Math.max(0, this.overallEndsAt - Date.now());
-      this.clearOverallTimer();
-      this.clearTimers();
-      this.pausedRemaining = remaining;
-      this.emitAll('control', { action: 'pause', remaining });
-      this.persist();
-      return true;
+  pause() {
+    if (this.status === 'paused') return { ok: true, unchanged: true }; // second click = no-op
+    if (this.status !== 'running') return { error: 'The quiz is not running right now.' };
+    // work out what is left BEFORE the timers are torn down
+    const remaining = this.phase === 'question'
+      ? Math.max(0, (this.timer?.endsAt || Date.now()) - Date.now())
+      : Math.max(0, (this.phaseEndsAt || Date.now()) - Date.now());
+    this.status = 'paused';
+    this.pausedAt = Date.now();
+    if (this.overallEndsAt) this.overallPausedRemaining = Math.max(0, this.overallEndsAt - Date.now());
+    this.clearOverallTimer();
+    this.clearTimers();
+    this.pausedRemaining = remaining;
+    this.emitAll('control', { action: 'pause', remaining });
+    this.persist();
+    return { ok: true, remaining };
+  }
+
+  resume() {
+    if (this.status === 'running') return { ok: true, unchanged: true }; // second click = no-op
+    if (this.status !== 'paused') return { error: 'The quiz is not paused right now.' };
+    this.status = 'running';
+    const remaining = this.pausedRemaining ?? 5000;
+    if (this.config.quizSeconds && this.overallPausedRemaining != null) {
+      this.armOverallTimer(this.overallPausedRemaining);
+      this.overallPausedRemaining = null;
     }
-    if (this.status === 'paused') {
-      this.status = 'running';
-      const remaining = this.pausedRemaining ?? 5000;
-      if (this.config.quizSeconds && this.overallPausedRemaining != null) {
-        this.armOverallTimer(this.overallPausedRemaining);
-        this.overallPausedRemaining = null;
-      }
-      if (this.currentPaced) {
-        // no shared clock to rebuild: give everyone back the paused time
-        const pausedFor = this.pausedAt ? Date.now() - this.pausedAt : 0;
-        if (pausedFor > 0) {
-          for (const p of this.players.values()) {
-            if (!p.finished && p.questionStartedAt) p.questionStartedAt += pausedFor;
-          }
+    if (this.currentPaced) {
+      // no shared clock to rebuild: give everyone back the paused time
+      const pausedFor = this.pausedAt ? Date.now() - this.pausedAt : 0;
+      if (pausedFor > 0) {
+        for (const p of this.players.values()) {
+          if (!p.finished && p.questionStartedAt) p.questionStartedAt += pausedFor;
         }
-        this.pausedAt = null;
-        this.emitAll('control', { action: 'resume' });
-        this.persist();
-        return true;
       }
-      if (this.phase === 'question') {
-        // clearTimers() dropped the timer, so rebuild it from what we saved
-        this.timer = {
-          duration: remaining,
-          endsAt: Date.now() + remaining,
-          handle: setTimeout(() => this.reveal('timeout'), remaining + 300),
-        };
-        this.emitAll('question:sync', { endsAt: this.timer.endsAt });
-      } else if (this.phase === 'reveal') {
-        this.phaseEndsAt = Date.now() + remaining;
-        this.revealTimer = setTimeout(() => this.advance(), remaining);
-      }
+      this.pausedAt = null;
       this.emitAll('control', { action: 'resume' });
       this.persist();
-      return true;
+      return { ok: true };
     }
-    return false;
+    if (this.phase === 'question') {
+      // clearTimers() dropped the timer, so rebuild it from what we saved
+      this.timer = {
+        duration: remaining,
+        endsAt: Date.now() + remaining,
+        handle: setTimeout(() => this.reveal('timeout'), remaining + 300),
+      };
+      this.emitAll('question:sync', { endsAt: this.timer.endsAt });
+    } else if (this.phase === 'reveal') {
+      this.phaseEndsAt = Date.now() + remaining;
+      this.revealTimer = setTimeout(() => this.advance(), remaining);
+    }
+    this.emitAll('control', { action: 'resume' });
+    this.persist();
+    return { ok: true };
+  }
+
+  togglePause() {
+    const out = this.status === 'running' ? this.pause() : this.resume();
+    return !!out.ok;
   }
 
   extend(seconds = EXTEND_SECONDS) {
@@ -1264,16 +1288,19 @@ export class Session {
     }));
 
     if (this.config.teamMode) {
-      const teams = {};
-      for (const p of ranked) {
-        const name = p.team || 'Solo';
-        (teams[name] ||= []).push(p);
-      }
-      const teamRows = Object.entries(teams)
-        .map(([name, ms]) => ({ name, ...teamSummary(ms), members: ms.map((m) => m.nickname) }))
-        .sort((a, b) => b.score - a.score)
-        .map((t, i) => ({ ...t, rank: i + 1 }));
-      return { mode: 'team', teams: teamRows, entries, hidden: 0, visible: this.config.leaderboardToStudents };
+      // teams = real teams only; players without one stay individuals
+      // (shown in their own "Solo players" section, never a fake team)
+      const teams = rankTeams(ranked);
+      const solo = entries.filter((e) => !e.team);
+      return {
+        mode: 'team',
+        teams,
+        solo,
+        entries, // the Individuals view shows every player, teamed or not
+        hidden: 0,
+        visible: this.config.leaderboardToStudents,
+        total: entries.length,
+      };
     }
 
     const hide = this.config.hideBottom;
@@ -1425,6 +1452,8 @@ export class Session {
       endedAt: this.endedAt || Date.now(),
       config: this.config,
       players,
+      // team standings for team-mode runs (fair tie-breaks, shared logic)
+      teams: this.config.teamMode ? rankTeams(this.ranked()) : undefined,
       questions,
       unitStats,
       weakUnits,
@@ -1524,5 +1553,19 @@ export class SessionStore {
       code: s.code, status: s.status, players: s.players.size, title: s.config.title, startedAt: s.startedAt,
       ownerId: s.config.ownerId || null, ownerName: s.config.ownerName || '',
     }));
+  }
+
+  /** Drop sessions nobody has touched for MAX_AGE_MS (ran on a timer). */
+  sweep(now = Date.now()) {
+    let dropped = 0;
+    for (const [code, s] of [...this.sessions.entries()]) {
+      if (s.status === 'ended') continue; // kept alive for the live report view
+      if (now - (s.lastActivity || 0) > MAX_AGE_MS) {
+        console.log(`[sessions] ${code} expired (no activity for ${Math.round(MAX_AGE_MS / 3_600_000)}h)`);
+        this.delete(code);
+        dropped++;
+      }
+    }
+    return dropped;
   }
 }

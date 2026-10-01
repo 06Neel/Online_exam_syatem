@@ -1,5 +1,6 @@
 // Live mode engine: thin wrapper over the socket protocol.
 import { getSocket, emitAck, on } from '../net.js';
+import { store } from '../state.js';
 
 export class LiveEngine {
   constructor({ code, playerId }) {
@@ -9,6 +10,8 @@ export class LiveEngine {
     this.unsubs = [];
     this.currentQIndex = -1;
     this.connected = false;
+    this.rejoining = false;
+    this.rejoinTries = 0;
   }
 
   on(event, cb) {
@@ -55,8 +58,44 @@ export class LiveEngine {
       this.emit('finished', p);
     });
 
+    // a dropped connection gives us a brand-new server-side socket: re-bind
+    // this player (same nickname keeps their seat) or learn the quiz is gone
+    add('connect', () => this.rejoin());
+
     this.connected = true;
+    if (!s.connected) this.rejoin(); // dropped between joining and attaching
     return () => { this.unsubs.forEach((u) => u()); this.unsubs = []; };
+  }
+
+  /** Re-join after a reconnect: restores score/seat, resyncs the screen. */
+  async rejoin() {
+    if (this.rejoining) return;
+    this.rejoining = true;
+    try {
+      const res = await emitAck('player:join', {
+        code: this.code,
+        nickname: store.nickname,
+        team: store.team || undefined,
+      }, 8000);
+      this.rejoinTries = 0;
+      if (!res?.ok) {
+        this.emit('session-lost', res?.error || 'This session is no longer open.');
+        return;
+      }
+      if (res.playerId) this.playerId = res.playerId;
+      this.emit('rejoined', res);
+    } catch (e) {
+      // the server did not answer - try a couple more times before giving up
+      this.rejoinTries++;
+      if (this.rejoinTries >= 3) {
+        this.rejoinTries = 0;
+        this.emit('session-lost', 'Could not reconnect to the quiz. Please join again.');
+        return;
+      }
+      setTimeout(() => this.rejoin(), 2500); // finally() clears the guard first
+    } finally {
+      this.rejoining = false;
+    }
   }
 
   async submit(answer) {

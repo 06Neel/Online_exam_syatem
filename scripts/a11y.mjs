@@ -9,7 +9,7 @@
 //        rules and targets under our stricter 44px design rule).
 import { chromium } from 'playwright-core';
 import { spawn } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +20,8 @@ const BASE = `http://localhost:${PORT}`;
 const SEED_ID = 'a11y-teacher';
 const SEED_PW = 'a11y-pass-123';
 const ADMIN_PW = 'a11y-admin-secret';
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'a11y-test');
 const THEMES = ['dark', 'light'];
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const BEST_PRACTICE = ['best-practice'];
@@ -41,11 +43,13 @@ let server;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function startServer() {
+  rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
       PORT: String(PORT),
       NODE_ENV: 'production',
+      DATA_DIR,
       SEED_TEACHER_ID: SEED_ID,
       SEED_TEACHER_PASSWORD: SEED_PW,
       ADMIN_PASSWORD: ADMIN_PW,
@@ -336,7 +340,7 @@ try {
   await audit(teacher, 'reports-history', { primary: /Dashboard/ });
 
   // the print page needs a saved report: seed one straight onto disk
-  const reportDir = join(ROOT, 'server', 'data', 'teachers', SEED_ID, 'reports');
+  const reportDir = join(DATA_DIR, 'teachers', SEED_ID, 'reports');
   mkdirSync(reportDir, { recursive: true });
   writeFileSync(join(reportDir, 'A11Y.json'), JSON.stringify({
     code: 'A11Y',
@@ -426,6 +430,7 @@ try {
   await browser?.close();
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* closed */ }
   server?.kill();
+  rmSync(DATA_DIR, { recursive: true, force: true });
 }
 
 // ================================================================ report

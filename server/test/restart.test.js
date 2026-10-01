@@ -11,7 +11,9 @@ import { existsSync, readdirSync, rmSync, readFileSync } from 'node:fs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 3205;
 const URL = `http://localhost:${PORT}`;
-const SESSIONS_DIR = join(ROOT, 'server', 'data', 'sessions-restart-test');
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'restart-test');
+const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 const SEED_ID = 'restart-teacher';
 const SEED_PW = 'restart-pass-123';
 
@@ -19,6 +21,7 @@ const ENV = {
   ...process.env,
   PORT: String(PORT),
   NODE_ENV: 'test',
+  DATA_DIR,
   PA_SESSIONS_DIR: SESSIONS_DIR,
   SEED_TEACHER_ID: SEED_ID,
   SEED_TEACHER_PASSWORD: SEED_PW,
@@ -82,7 +85,7 @@ const snapshotFor = (code) => {
 };
 
 test.before(async () => {
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
   server = boot();
   await waitHealthy();
 });
@@ -91,7 +94,7 @@ test.after(() => {
   for (const s of sockets) { try { s.close(); } catch { /* already gone */ } }
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* closed */ }
   server?.kill();
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
 });
 
 test('a restarted server restores the running quiz for teacher and student', async () => {
@@ -169,4 +172,66 @@ test('a restarted server restores the running quiz for teacher and student', asy
   assert.equal((ended.report.players[0].correct || 0) + (ended.report.players[0].wrong || 0) >= 1, true,
     'the pre-restart answer is still in the report');
   assert.equal(snapshotFor(code), null, 'snapshot dropped once the report exists');
+});
+
+test('(c)+(d) teacher accounts and their question bank survive a restart', async () => {
+  // --- before the restart: sign in and edit the bank ---
+  const token = await signIn();
+
+  const custom = {
+    id: 'u1-q99',
+    type: 'mcq',
+    difficulty: 'easy',
+    boss: false,
+    unit: 1,
+    prompt: 'Restart probe: which line stores 5 in x?',
+    options: [
+      { id: 'a', text: 'x = 5' },
+      { id: 'b', text: 'x == 5' },
+      { id: 'c', text: '5 -> x' },
+      { id: 'd', text: 'x: 5 = 5' },
+    ],
+    answer: ['a'],
+    explanation: 'The equals sign stores the value on the right into the name on the left.',
+    analogy: 'Like putting five apples in a box labelled x.',
+    hint: 'Look for the plain equals sign.',
+    tags: ['variables'],
+    mini: {
+      type: 'mcq',
+      prompt: 'Which one compares?',
+      options: [{ id: 'a', text: 'x == 5' }, { id: 'b', text: 'x = 5' }],
+      answer: 'a',
+      explanation: 'The double equals sign compares two values.',
+    },
+  };
+  const save = await fetch(`${URL}/api/bank`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-teacher-token': token },
+    body: JSON.stringify(custom),
+  });
+  assert.equal(save.status, 200, `the bank edit saved: ${await save.text()}`);
+
+  const bankBefore = await (await fetch(`${URL}/api/bank`, { headers: { 'x-teacher-token': token } })).json();
+  assert.ok(bankBefore.some((q) => q.id === 'u1-q99'), 'the custom question is in the bank');
+
+  // --- restart ---
+  const exited = new Promise((r) => server.once('exit', r));
+  server.kill();
+  await exited;
+  server = boot();
+  await waitHealthy();
+
+  // (c) the same account signs in with the same password - teachers.json persisted
+  const token2 = await signIn();
+  assert.ok(token2, 'the teacher account survived the restart');
+
+  // (d) the bank edit is still there after the restart
+  const bankAfter = await (await fetch(`${URL}/api/bank`, { headers: { 'x-teacher-token': token2 } })).json();
+  assert.ok(bankAfter.some((q) => q.id === 'u1-q99'), 'the custom question survived the restart');
+  const probe = bankAfter.find((q) => q.id === 'u1-q99');
+  assert.equal(probe.prompt, custom.prompt, 'with its exact content');
+
+  // a *new* account created before the restart would also persist - prove the file is shared
+  const folders = readdirSync(join(DATA_DIR, 'teachers'));
+  assert.ok(folders.includes(SEED_ID), 'the teacher folder lives under DATA_DIR');
 });

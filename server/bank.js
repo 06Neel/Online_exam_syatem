@@ -13,15 +13,14 @@ import { fileURLToPath } from 'node:url';
 import { ensureDir, readJsonSync, writeJsonSync, withLock } from './filesafe.js';
 import { sanitizeId } from './auth.js';
 import { getUnits } from './units.js';
+import { DATA_DIR, TEACHERS_DIR } from './paths.js';
 import { fileUnitList, fileUnitName, DEFAULT_SET_NAME } from '../shared/units.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const BANK_DIR = join(ROOT, 'questions', 'bank');
 const FACTS_PATH = join(ROOT, 'questions', 'facts.json');
-const DATA_DIR_LOCAL = join(HERE, 'data');
-const EDIT_PATH = join(DATA_DIR_LOCAL, 'questions-override.json');   // legacy, shared
-const TEACHERS_DIR = join(DATA_DIR_LOCAL, 'teachers');
+const EDIT_PATH = join(DATA_DIR, 'questions-override.json');   // legacy, shared
 
 const caches = new Map();  // ownerKey ('' = shared) -> { questions, overrides }
 

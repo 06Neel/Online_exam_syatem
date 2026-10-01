@@ -12,7 +12,9 @@ import { rmSync } from 'node:fs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 3214;
 const URL = `http://localhost:${PORT}`;
-const SESSIONS_DIR = join(ROOT, 'server', 'data', 'sessions-sets-test');
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'sets-test');
+const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 
 const SEED_ID = 'sets-teacher';
 const SEED_PW = 'sets-pass-123';
@@ -156,12 +158,13 @@ async function startQuiz(payload) {
 }
 
 async function bootServer() {
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
       PORT: String(PORT),
       NODE_ENV: 'test',
+      DATA_DIR,
       PA_SESSIONS_DIR: SESSIONS_DIR,
       SEED_TEACHER_ID: SEED_ID,
       SEED_TEACHER_PASSWORD: SEED_PW,
@@ -187,6 +190,7 @@ async function restartServer() {
       ...process.env,
       PORT: String(PORT),
       NODE_ENV: 'test',
+      DATA_DIR,
       PA_SESSIONS_DIR: SESSIONS_DIR,
       SEED_TEACHER_ID: SEED_ID,
       SEED_TEACHER_PASSWORD: SEED_PW,
@@ -215,9 +219,10 @@ test.before(async () => {
 });
 
 test.after(() => {
-  sockets.forEach((s) => { try { s.close(); } catch { /* already closed */ } });
+  sockets.forEach((s) => { try { s.close(); } catch { /* already gone */ } });
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* already gone */ }
   server?.kill();
+  rmSync(DATA_DIR, { recursive: true, force: true });
 });
 
 // ---------- state shared across the scenario ----------

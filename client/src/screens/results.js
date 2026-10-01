@@ -1,5 +1,6 @@
-import { h, mount, confetti, esc } from '../ui.js';
+import { h, mount, confetti, esc, pct } from '../ui.js';
 import { badgeById } from '../../../shared/badges.js';
+import { rankTeams } from '../../../shared/scoring.js';
 import { BAND_INFO } from '../../../shared/quiz.js';
 import { store, save } from '../state.js';
 import { go } from '../main.js';
@@ -62,6 +63,9 @@ export function render(root) {
     }, `${q.correct ? '✓' : '✗'} ${q.refresher ? '↻' : ''} ${q.id.replace(/^u(\d)-q(\d+)$/, (_, u, n) => `L${u}.${n}`)}`));
 
   const weak = (report.weakUnits || []).filter(Boolean);
+  // team-mode runs: the final team standings (solo players keep their own rank)
+  const teams = report.config?.teamMode ? rankTeams(report.players) : [];
+  const myTeam = me.team ? teams.find((t) => t.name === me.team) : null;
 
   const practiceWeak = () => {
     const units = weak.length ? weak : Object.entries(unitStats)
@@ -83,12 +87,28 @@ export function render(root) {
             h('h1', { style: { margin: 0 } },
               isTeam ? (myRank === 1 ? 'You topped the board! 🏆' : `You finished #${myRank}`) : 'Practice complete! 🌱'),
             h('p', { class: 'muted', style: { margin: '6px 0 0' } },
-              `${me.nickname} · ${report.players.length > 1 ? `ranked ${myRank} of ${report.players.length}` : 'private run, no ranking'}`)),
+              `${me.nickname}${me.team ? ` · 👥 ${me.team}${myTeam ? ` (team #${myTeam.rank})` : ''}` : ''} · ${report.players.length > 1 ? `ranked ${myRank} of ${report.players.length}` : 'private run, no ranking'}`)),
           h('div', { class: 'row' },
             h('div', { class: 'stat brand' }, h('div', { class: 'k' }, 'Score'), h('div', { class: 'v' }, me.score)),
             h('div', { class: `stat ${accuracy >= 0.7 ? 'good' : accuracy < 0.5 ? 'bad' : ''}` },
               h('div', { class: 'k' }, 'Accuracy'), h('div', { class: 'v' }, `${Math.round(accuracy * 100)}%`)),
             h('div', { class: 'stat' }, h('div', { class: 'k' }, 'Best streak'), h('div', { class: 'v' }, `🔥${me.bestStreak || 0}`))))),
+
+      teams.length
+        ? h('div', { class: 'card' },
+          h('div', { class: 'spread' },
+            h('h2', { style: { margin: 0 } }, '🏆 Team standings'),
+            h('span', { class: 'chip' }, `${teams.length} team${teams.length === 1 ? '' : 's'}`)),
+          h('div', { class: 'roster', style: { marginTop: '10px' } },
+            teams.map((t) => h('div', { class: 'p' },
+              h('span', { class: `chip ${t.rank === 1 ? 'good' : ''}` }, `#${t.rank}`),
+              h('span', { style: { flex: 1, minWidth: 0 } },
+                h('b', null, `👥 ${t.name}`, t.name === me.team ? h('span', { class: 'chip topic', style: { marginLeft: '6px' } }, 'your team') : null),
+                h('div', { class: 'meta' }, `${(t.members || []).join(', ')} · avg ${t.avg} · ${pct(t.accuracy)} right`)),
+              h('span', { class: 'score' }, t.score)))),
+          h('p', { class: 'muted small', style: { margin: '10px 0 0' } },
+            'Solo players are ranked individually above - no fake teams here.'))
+        : null,
 
       h('div', { class: 'card' },
         h('div', { class: 'spread' },
@@ -138,10 +158,10 @@ export function render(root) {
 }
 
 function downloadReport(report) {
-  const rows = [['Student', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (s)', 'Best streak', 'Weak units']];
+  const rows = [['Student', 'Team', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (s)', 'Best streak', 'Weak units']];
   for (const p of report.players) {
     rows.push([
-      p.nickname, p.score, p.correct, p.wrong,
+      p.nickname, p.team || 'Solo', p.score, p.correct, p.wrong,
       `${Math.round((p.accuracy || 0) * 100)}%`,
       Math.round((p.totalTimeMs || 0) / 1000),
       p.bestStreak || 0,

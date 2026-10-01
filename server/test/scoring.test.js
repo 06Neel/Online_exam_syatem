@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, hintsUsed, teamSummary, BASE_POINTS, POWERUP_COSTS } from '../../shared/scoring.js';
+import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, hintsUsed, teamSummary, rankTeams, BASE_POINTS, POWERUP_COSTS } from '../../shared/scoring.js';
 
 test('a correct answer always beats any wrong answer, whatever the speed', () => {
   const instant = scoreAnswer({ difficulty: 'medium', correct: true, timeLeftFraction: 1, streak: 0 });
@@ -86,6 +86,58 @@ test('team summary aggregates the squad', () => {
   assert.equal(t.correct, 6);
   assert.equal(t.wrong, 4);
   assert.equal(t.accuracy, 0.6);
+});
+
+test('rankTeams: member names, solo players stay out, fair tie-breaks', () => {
+  const players = [
+    { nickname: 'Ann', team: 'Pythons', score: 120, correct: 3, wrong: 1 },
+    { nickname: 'Bo', team: 'Pythons', score: 80, correct: 2, wrong: 2 },
+    { nickname: 'Cy', team: 'Cobras', score: 100, correct: 5, wrong: 0 },
+    { nickname: 'Di', team: '', score: 300, correct: 6, wrong: 0 }, // solo: not a team
+    { nickname: 'Ed', team: '  ', score: 90, correct: 1, wrong: 1 }, // blank = solo too
+  ];
+
+  const teams = rankTeams(players);
+  assert.equal(teams.length, 2, 'only real teams are ranked - no fake Solo team');
+
+  // Pythons (200) beat Cobras (100) on total
+  assert.equal(teams[0].name, 'Pythons');
+  assert.equal(teams[0].score, 200, 'team score is the sum of every member');
+  assert.equal(teams[0].rank, 1);
+  assert.deepEqual([...teams[0].members].sort(), ['Ann', 'Bo'], 'members are the nicknames');
+  assert.equal(teams[0].size, 2);
+  assert.equal(teams[0].avg, 100, 'average per member rounds to whole points');
+
+  assert.equal(teams[1].name, 'Cobras');
+  assert.equal(teams[1].score, 100);
+  assert.equal(teams[1].avg, 100);
+  assert.equal(teams[1].accuracy, 1, 'a perfect team shows 100% accuracy');
+
+  // tie-breaks: equal total -> higher average wins
+  const avgWins = rankTeams([
+    { nickname: 'A', team: 'Few', score: 100, correct: 4, wrong: 0 },
+    { nickname: 'B', team: 'Many', score: 50, correct: 2, wrong: 0 },
+    { nickname: 'C', team: 'Many', score: 50, correct: 2, wrong: 0 },
+  ]);
+  assert.equal(avgWins[0].name, 'Few', 'equal totals: the smaller team per head ranks first');
+
+  // equal total AND average -> accuracy decides
+  const accWins = rankTeams([
+    { nickname: 'A', team: 'Sharp', score: 100, correct: 4, wrong: 0 },
+    { nickname: 'B', team: 'Lucky', score: 100, correct: 3, wrong: 1 },
+  ]);
+  assert.equal(accWins[0].name, 'Sharp', 'equal totals + average: better accuracy ranks first');
+
+  // everything equal -> team name keeps the order deterministic
+  const byName = rankTeams([
+    { nickname: 'X', team: 'zebras', score: 50, correct: 2, wrong: 0 },
+    { nickname: 'Y', team: 'Ants', score: 50, correct: 2, wrong: 0 },
+  ]);
+  assert.deepEqual(byName.map((t) => t.name), ['Ants', 'zebras'], 'a dead tie falls back to the name');
+
+  // shuffled input always yields the same order
+  const shuffled = rankTeams([...players].reverse());
+  assert.deepEqual(shuffled.map((t) => t.name), teams.map((t) => t.name), 'input order never changes the ranking');
 });
 
 test('self-paced ranking: score, then fewer hints, then earlier finish', () => {

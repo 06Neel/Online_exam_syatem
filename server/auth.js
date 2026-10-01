@@ -8,18 +8,14 @@
 import { createHash, randomBytes, scrypt as _scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { cpSync, existsSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { ensureDir, readJsonSync, updateJson, withLock, writeJsonSync } from './filesafe.js';
+import { DATA_DIR, TEACHERS_FILE, TEACHERS_DIR, SESSIONS_DIR, TRASH_DIR } from './paths.js';
+
+// re-exported: several modules (and tests) import these from here
+export { DATA_DIR, TEACHERS_FILE, TEACHERS_DIR, SESSIONS_DIR, TRASH_DIR };
 
 const scrypt = promisify(_scrypt);
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-export const DATA_DIR = join(HERE, 'data');
-export const TEACHERS_FILE = join(DATA_DIR, 'teachers.json');
-export const TEACHERS_DIR = join(DATA_DIR, 'teachers');
-export const SESSIONS_DIR = join(DATA_DIR, 'sessions');
-export const TRASH_DIR = join(DATA_DIR, 'trash');
 
 const ID_RE = /^[a-z0-9._-]{2,40}$/i;
 const TOKEN_TTL_MS = 60 * 60 * 1000;   // sliding inactivity window for login tokens

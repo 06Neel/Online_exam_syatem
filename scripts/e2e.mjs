@@ -3,6 +3,7 @@
 // Run: node scripts/e2e.mjs   (build first: npm run build)
 import { chromium } from 'playwright-core';
 import { spawn } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +13,8 @@ const BASE = `http://localhost:${PORT}`;
 const SEED_ID = 'e2e-teacher';
 const SEED_PW = 'e2e-pass-123';
 const ADMIN_PW = 'e2e-admin-secret';
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'e2e-test');
 const errors = [];
 
 const log = (...a) => console.log('  ', ...a);
@@ -27,11 +30,13 @@ function watch(page, name) {
 }
 
 async function startServer() {
+  rmSync(DATA_DIR, { recursive: true, force: true });
   const server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
       PORT: String(PORT),
       NODE_ENV: 'production',
+      DATA_DIR,
       SEED_TEACHER_ID: SEED_ID,
       SEED_TEACHER_PASSWORD: SEED_PW,
       ADMIN_PASSWORD: ADMIN_PW,
@@ -154,6 +159,24 @@ try {
   await student.getByText(/Bonus time/i).first().waitFor({ timeout: 6000 });
   check(true, 'student timer gets the extra 10s');
 
+  // ---------------- teacher reloads the dashboard mid-quiz ----------------
+  step('Teacher reloads the dashboard mid-quiz');
+  await teacher.reload({ waitUntil: 'networkidle' });
+  await teacher.waitForURL(/#\/teacher\/live/, { timeout: 10000 });
+  await teacher.waitForSelector('.controls .mono', { timeout: 10000 });
+  const codeAfterReload = (await teacher.locator('.controls .mono').first().textContent()).trim();
+  check(codeAfterReload === code, `reload rejoins the same session (${codeAfterReload})`);
+  const qAfterReload = await teacher.getByText(/Question 1/).count();
+  check(qAfterReload > 0, 'teacher still sees the running question after the reload');
+  await student.waitForSelector('.q-render', { timeout: 8000 });
+  check(true, 'the student never left the question while the dashboard reloaded');
+  await teacher.locator('[aria-label="Pause the quiz"]').click();
+  await student.getByText(/paused the game/i).first().waitFor({ timeout: 6000 });
+  check(true, 'the reloaded dashboard can still control the quiz');
+  await teacher.locator('[aria-label="Resume the quiz"]').click();
+  await student.getByText(/Back in play/i).first().waitFor({ timeout: 6000 });
+  check(true, 'and resume works too after the reload');
+
   // ---------------- student answers ----------------
   step('Student answers');
   const answeredAs = await answerQuestion(student);
@@ -259,6 +282,7 @@ try {
   await browser?.close();
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* closed */ }
   server?.kill();
+  rmSync(DATA_DIR, { recursive: true, force: true });
 }
 
 if (errors.length) {

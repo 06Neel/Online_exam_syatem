@@ -185,6 +185,57 @@ test('results screen shows a friendly empty state without a report', async () =>
   assert.match(container.textContent, /No results yet|strength map/i);
 });
 
+test('team views render: report card, team standings and the individuals table', async () => {
+  const players = [
+    { id: 'p1', nickname: 'Ann', team: 'Pythons', score: 120, correct: 3, wrong: 1, accuracy: 0.75, badges: [], totalTimeMs: 42000, unitStats: {} },
+    { id: 'p2', nickname: 'Bo', team: 'Pythons', score: 80, correct: 2, wrong: 2, accuracy: 0.5, badges: [], totalTimeMs: 51000, unitStats: {} },
+    { id: 'p3', nickname: 'Cy', team: '', score: 100, correct: 5, wrong: 0, accuracy: 1, badges: [], totalTimeMs: 39000, unitStats: {} },
+  ];
+  const report = {
+    code: 'ABCD', title: 'Team run', meId: 'p1',
+    config: { teamMode: true, timerOn: true },
+    players,
+    totals: { players: 3, answers: 9, accuracy: 0.7 },
+    questions: [], unitStats: {}, struggling: [], needsHelp: [],
+  };
+
+  // teacher report: Team column in the table + a Team standings card
+  const { reportView } = await import('../../client/src/screens/teacherLive.js');
+  const view = reportView(report);
+  const text = view.textContent;
+  assert.ok(text.includes('Team standings'), 'the team standings card is shown');
+  assert.ok(text.includes('Pythons'), 'the team name is in the standings');
+  assert.ok(text.includes('Ann') && text.includes('Bo'), 'both member names are listed');
+  assert.ok(text.includes('Solo'), 'the unteamed player is marked Solo in the table');
+  assert.ok(text.includes('1 team') || text.includes('team'), 'the chip counts teams');
+
+  // the same report on the student results screen
+  const { save } = await import('../../client/src/state.js');
+  save({ lastReport: report });
+  const results = await render('#/results', import('../../client/src/screens/results.js'));
+  const rtext = results.textContent;
+  assert.ok(rtext.includes('Team standings'), 'results shows team standings too');
+  assert.ok(rtext.includes('Pythons'), 'results shows the team name');
+  assert.ok(rtext.includes('(team #1)'), 'the student sees their own team rank');
+  save({ lastReport: null });
+});
+
+test('results for a solo report never shows a team card', async () => {
+  const { save } = await import('../../client/src/state.js');
+  save({
+    lastReport: {
+      code: 'WXYZ', meId: 's1',
+      config: { teamMode: false, timerOn: true },
+      players: [{ id: 's1', nickname: 'Solo Sam', score: 40, correct: 1, wrong: 1, accuracy: 0.5, badges: [], unitStats: {} }],
+      totals: { players: 1, answers: 2, accuracy: 0.5 },
+      questions: [], unitStats: {}, weakUnits: [],
+    },
+  });
+  const results = await render('#/results', import('../../client/src/screens/results.js'));
+  assert.ok(!results.textContent.includes('Team standings'), 'no team card without team mode');
+  save({ lastReport: null });
+});
+
 test('editor is gated behind a teacher sign-in', async () => {
   const container = await render('#/teacher/edit', import('../../client/src/screens/editor.js'));
   assert.match(container.textContent, /sign in/i, 'editor explains how to unlock');

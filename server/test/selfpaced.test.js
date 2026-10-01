@@ -10,7 +10,9 @@ import { rmSync } from 'node:fs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 3213;
 const URL = `http://localhost:${PORT}`;
-const SESSIONS_DIR = join(ROOT, 'server', 'data', 'sessions-selfpaced-test');
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'selfpaced-test');
+const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 
 let server;
 const sockets = [];
@@ -82,12 +84,13 @@ async function createSession(extra = {}) {
 }
 
 test.before(async () => {
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
       PORT: String(PORT),
       NODE_ENV: 'test',
+      DATA_DIR,
       PA_SESSIONS_DIR: SESSIONS_DIR,
       SEED_TEACHER_ID: SEED_ID,
       SEED_TEACHER_PASSWORD: SEED_PW,
@@ -114,7 +117,7 @@ test.after(() => {
   sockets.forEach((s) => { try { s.close(); } catch { /* already closed */ } });
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* already closed */ }
   server?.kill();
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
 });
 
 test('self-paced run: personal questions, own navigation, teacher watches progress', async () => {

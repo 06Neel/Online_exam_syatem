@@ -10,7 +10,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { UNITS } = await import('../../shared/units.js');
 const PORT = 3199;
 const URL = `http://localhost:${PORT}`;
-const SESSIONS_DIR = join(ROOT, 'server', 'data', 'sessions-integration-test');
+// everything this run writes lives here - the real server/data is never touched
+const DATA_DIR = join(ROOT, 'server', 'data', 'integration-test');
+const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 
 let server;
 const sockets = [];
@@ -58,12 +60,13 @@ async function signIn(id, password) {
 }
 
 test.before(async () => {
-  rmSync(SESSIONS_DIR, { recursive: true, force: true });
+  rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
       PORT: String(PORT),
       NODE_ENV: 'test',
+      DATA_DIR,
       PA_SESSIONS_DIR: SESSIONS_DIR,
       SEED_TEACHER_ID: SEED_ID,
       SEED_TEACHER_PASSWORD: SEED_PW,
@@ -90,6 +93,7 @@ test.after(() => {
   sockets.forEach((s) => { try { s.close(); } catch { /* already closed */ } });
   try { server?.stderr?.destroy(); server?.stdout?.destroy(); } catch { /* already closed */ }
   server?.kill();
+  rmSync(DATA_DIR, { recursive: true, force: true });
 });
 
 test('host creates a session, students join, the quiz runs end to end', async () => {
@@ -825,4 +829,86 @@ test('reports: finished quizzes are saved, listed and deleted per teacher', asyn
   assert.equal(delAgain.status, 404);
   const after = await (await fetch(`${URL}/api/reports`, { headers })).json();
   assert.ok(!after.some((r) => r.code === code), 'deleted report leaves the history');
+});
+
+// ---------- team mode leaderboards ----------
+test('team mode: leaderboard carries team standings, solo players and individuals', async () => {
+  const host = connect(URL, { transports: ['websocket'], forceNew: true });
+  sockets.push(host);
+  await new Promise((r) => host.on('connect', r));
+
+  const created = await emitAck(host, 'host:create', {
+    token: teacherToken, title: 'Teams', units: [1], count: 3, difficulty: 'easy',
+    revealSeconds: 2, teamMode: true, leaderboardToStudents: true, hideBottom: 0,
+  });
+  assert.ok(created.ok, created.error || 'team session created');
+  const code = created.code;
+  assert.equal(created.config.teamMode, true);
+
+  const mkPlayer = async () => {
+    const s = connect(URL, { transports: ['websocket'], forceNew: true });
+    sockets.push(s);
+    await new Promise((r) => s.on('connect', r));
+    return s;
+  };
+  const [ann, bo, cy] = await Promise.all([mkPlayer(), mkPlayer(), mkPlayer()]);
+
+  const joinAnn = await emitAck(ann, 'player:join', { code, nickname: 'Ann', team: 'Pythons' });
+  const joinBo = await emitAck(bo, 'player:join', { code, nickname: 'Bo', team: 'Pythons' });
+  const joinCy = await emitAck(cy, 'player:join', { code, nickname: 'Cy' }); // no team
+  assert.ok(joinAnn.ok && joinBo.ok && joinCy.ok);
+  assert.equal(joinAnn.leaderboard.mode, 'team', 'a team-mode join reply is mode:team');
+  assert.ok(Array.isArray(joinAnn.leaderboard.teams), 'teams array present');
+  assert.ok(Array.isArray(joinAnn.leaderboard.solo), 'solo array present');
+  assert.ok(Array.isArray(joinAnn.leaderboard.entries), 'individuals array still present');
+
+  const answerIt = async (sock, qp) => {
+    const q = qp.question;
+    const answer = q.type === 'fill-blank'
+      ? q.accepted[0]
+      : q.type === 'match'
+        ? Object.fromEntries(q.pairs.map((x, i) => [i, x.right]))
+        : q.options[0].id;
+    return emitAck(sock, 'player:answer', { qIndex: qp.qIndex, answer });
+  };
+  const answerAll = (sock) => {
+    sock.on('question:start', (qp) => { answerIt(sock, qp).catch(() => {}); });
+  };
+  [ann, bo, cy].forEach(answerAll);
+
+  const first = waitEvent(ann, 'question:start');
+  const lbPromise = waitEvent(host, 'leaderboard', 20000, (p) => p.mode === 'team'
+    && p.teams?.length === 1 && p.solo?.length === 1 && p.entries?.length === 3);
+  const ended = waitEvent(host, 'quiz:end', 45000);
+  await emitAck(host, 'host:start');
+  await answerIt(ann, await first);
+  if (ann !== bo) await answerIt(bo, await first).catch(() => {});
+  if (ann !== cy) await answerIt(cy, await first).catch(() => {});
+
+  const lb = await lbPromise;
+  assert.equal(lb.mode, 'team');
+  assert.equal(lb.teams.length, 1, 'only real teams are ranked - no fake "Solo" team');
+  const pythons = lb.teams[0];
+  assert.equal(pythons.name, 'Pythons');
+  assert.deepEqual([...pythons.members].sort(), ['Ann', 'Bo'], 'the team row lists both member names');
+  assert.equal(pythons.rank, 1);
+  assert.equal(pythons.size, 2);
+  assert.equal(typeof pythons.score, 'number');
+  assert.equal(typeof pythons.avg, 'number');
+  assert.equal(typeof pythons.accuracy, 'number');
+  assert.equal(lb.solo.length, 1, 'the unteamed player is under Solo players');
+  assert.equal(lb.solo[0].nickname, 'Cy');
+  assert.equal(lb.entries.length, 3, 'the Individuals view shows every player');
+
+  const report = (await ended).report;
+  assert.equal(report.code, code);
+  assert.equal(report.config.teamMode, true, 'the report remembers it was a team run');
+  assert.ok(Array.isArray(report.teams) && report.teams.length === 1, 'report.teams carries the standings');
+  assert.deepEqual([...report.teams[0].members].sort(), ['Ann', 'Bo'], 'report teams keep member names too');
+  assert.ok(report.players.some((p) => p.nickname === 'Cy' && !p.team), 'the solo player is still a person in the report');
+
+  // the HTTP report endpoint serves the same team standings
+  const full = await (await fetch(`${URL}/api/reports/${code}`, { headers: { 'x-teacher-token': teacherToken } })).json();
+  assert.ok(full.teams?.length === 1, 'GET report exposes teams');
+  assert.deepEqual([...full.teams[0].members].sort(), ['Ann', 'Bo']);
 });
