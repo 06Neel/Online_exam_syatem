@@ -1524,6 +1524,13 @@ export class SessionStore {
     dropSnapshot(code);
   }
 
+  /** Forget every in-memory session (an admin backup restore replaces all data). */
+  clearAll() {
+    const n = this.sessions.size;
+    this.sessions.clear();
+    return n;
+  }
+
   /** Reload snapshots written before a restart; stale or finished ones are dropped. */
   restoreAll() {
     let restored = 0;

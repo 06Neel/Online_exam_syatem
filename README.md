@@ -145,9 +145,9 @@ See `render.yaml`. Environment variables:
 | `ALLOWED_ORIGINS` | Comma-separated list of your other-origin URLs (CORS). Not needed when one host serves client + server |
 | `NODE_ENV` | `production` |
 | `ADMIN_PASSWORD` | The hidden admin sign-in (see **Accounts & roles**). Set it in `.env`, never commit it |
-| `SEED_TEACHER_ID` / `SEED_TEACHER_PASSWORD` | Optional: create/refresh one teacher account on boot |
-| `DATA_DIR` | Where all private data lives (accounts, banks, reports, snapshots). Default `server/data`. Point it at a **persistent** folder on any host that wipes files on redeploy |
-| `DATABASE_URL` | Optional Postgres. When set, every teacher-account change is mirrored into a `teachers` table and loaded back on boot, so **accounts survive redeploys even when `DATA_DIR` is wiped**. Antideploy provisions this automatically (it sees `pg` in the dependencies); any Postgres (Neon, Supabase, your own) works too. Without it the app runs file-only, exactly as before |
+| `SEED_TEACHER_ID` / `SEED_TEACHER_PASSWORD` | Optional: create one teacher on the very first run only — never overwrites an existing account |
+| `DATA_DIR` | Where private files live. Default `server/data`. With `DATABASE_URL` set this is the fast local cache — Postgres holds the durable copy |
+| `DATABASE_URL` | Postgres connection string: **everything** (teacher accounts, banks, units, classes, reports, settings, running-session snapshots) is mirrored there and restored on boot, so it survives restarts, redeploys and wiped disks. Antideploy provides it automatically (it sees `pg` in the dependencies) — see **Database setup** below. Without it the app runs file-only (fine for local development) |
 | `SESSION_MAX_AGE_HOURS` | A quiz with no activity for this long expires (default `12`) |
 | `PA_SESSIONS_DIR` | Optional: where running-session snapshots live (tests use their own) |
 
@@ -155,13 +155,11 @@ Students then open the server URL (Option A) or the Netlify URL (Option B), ente
 shown on the teacher dashboard, and play.
 
 **Persistence**: everything private lives under one folder, `DATA_DIR` (default `server/data/`
-in the repo): teacher accounts, banks, classes, reports and running-session snapshots. The boot
-log prints the absolute path. If your host has a persistent disk, set `DATA_DIR` to it; otherwise
-back that folder up — see **Backing up** below. Running quizzes are snapshotted into
-`DATA_DIR/sessions/` and automatically resume after a server restart (up to
-`SESSION_MAX_AGE_HOURS`, default 12 hours old). When `DATABASE_URL` is set, teacher accounts get
-an extra durable copy in Postgres (boot log: `accounts: mirrored to Postgres`), restored into
-`teachers.json` automatically after any wipe.
+in the repo): teacher accounts, banks, classes, reports and running-session snapshots — the
+boot log prints the absolute path. With `DATABASE_URL` set (recommended on any cloud host),
+every write is **also mirrored into Postgres** and restored from it on boot, so restarts and
+redeploys change nothing (boot log: `storage: mirrored to Postgres`). Running quizzes resume
+after a server restart (up to `SESSION_MAX_AGE_HOURS`, default 12 hours old).
 
 ### One host does everything (Antideploy, Render, any VPS)
 
@@ -173,22 +171,44 @@ npm run build     # writes dist/
 node server/index.js
 ```
 
-Keep the free tier awake: the app answers `GET /api/health` with `{ok, sessions}` — point a
-cron/health-check at `/api/health` every few minutes (3 cron jobs per app are plenty).
+Keep the free tier awake: the app answers `GET /api/health` with `{ok, sessions, storage}`
+(`storage` is `database` or `file`) — point a cron/health-check at `/api/health` every few
+minutes (3 cron jobs per app are plenty).
 
-**Know what your host keeps.** Platforms like **Antideploy** give you a temporary filesystem:
-files are wiped on every restart, redeploy or scale-to-zero. With the default `DATA_DIR` that
-means uploaded banks and reports **disappear whenever the app restarts**, and a long-running
-quiz cannot come back after a redeploy (it lives in memory + that folder).
+### Database setup (what survives a restart)
 
-**Teacher accounts are the exception**: with `DATABASE_URL` set (Antideploy does this by
-itself — the app depends on `pg`), every sign-in, new account, password change and deletion is
-mirrored into Postgres and restored into `teachers.json` on the next boot, so accounts come
-back after every redeploy. Without `DATABASE_URL`, accounts live only on disk.
+The app keeps its data as JSON files and mirrors every write into **Postgres** when
+`DATABASE_URL` is set. Tables are created automatically on the first boot — you never run
+any database command by hand.
 
-For everything else, fix either by pointing `DATA_DIR` at a persistent volume/disk, or by
-accepting the reset — the app itself never corrupts: every write is atomic
-(tmp → backup → rename) and a damaged file is recovered from its `.bak` copy on the next boot.
+**On Antideploy (this project's host): nothing to do.** It provisions a free Postgres and
+injects `DATABASE_URL` as soon as it sees `pg` in `package.json`:
+
+1. Push the repository and deploy as usual.
+2. Open the app's environment settings and confirm `DATABASE_URL` is listed (added
+   automatically; you can also paste your own — see the Neon steps below).
+3. Check the server log for `storage: mirrored to Postgres (N files, …)` — that line is
+   the confirmation everything is durable.
+4. Redeploy or restart: teachers, banks, units, reports, settings and any running quiz
+   come back exactly as they were.
+
+**Portable alternative — Neon free tier, 5 steps:**
+
+1. Go to <https://neon.tech> and sign up (free, no credit card).
+2. Click **Create project**, pick any name and region, press **Create**.
+3. On the **Connect** screen copy the connection string
+   (`postgres://user:password@host/db?sslmode=require`).
+4. In your host's environment variables (Antideploy: app → Environment) add
+   `DATABASE_URL` = that connection string — or put it in `.env` on a VPS.
+5. Redeploy. The app creates its own tables on the next boot.
+
+(Supabase works the same way: create a project → *Connect* → copy the Postgres string →
+set `DATABASE_URL`.)
+
+**If the database is unreachable**, the server **refuses to start on purpose**: the console
+prints a `FATAL: the database is unreachable` block saying exactly what to fix, and the
+host shows its error page instead of a half-working app. It never falls back to default
+users silently. Fix `DATABASE_URL` (or restore the database) and restart.
 
 ### Classroom (no internet)
 Run `npm run dev` on the teacher laptop and let students join via `http://<teacher-ip>:5173`.
@@ -336,7 +356,12 @@ Every `*.json` write keeps a `.bak` of the previous good copy; if the main file 
 unreadable (crash mid-write, full disk), the server boots from the backup instead of
 starting empty.
 
-**Backing up**: stop the server (or not — writes are atomic), copy `$DATA_DIR` and
-`questions/bank/`, restore by copying them back. Deleting a report or closing a session
-never touches your question bank. Tests and the e2e/a11y/shots scripts run against their
-own throwaway `DATA_DIR`, so they never touch this folder.
+**Backing up and restoring**: sign in as admin → **Administration** → **Data backup** →
+*Export all data* downloads one JSON file (accounts with hashed passwords, banks, units,
+classes, reports, settings, session history). *Restore from backup* puts everything back on
+the same or a fresh install (replaces all stored data, signs everyone out — you confirm
+first). The same file also works as a manual backup: keep it somewhere safe. For a
+plain-disk install you can still copy `$DATA_DIR` and `questions/bank/` by hand. Deleting a
+report or closing a session never touches your question bank. Tests and the
+e2e/a11y/shots scripts run against their own throwaway `DATA_DIR`, so they never touch this
+folder.

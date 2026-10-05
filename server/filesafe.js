@@ -3,15 +3,16 @@
 // - every write goes to x.tmp first, keeps x.bak of the previous copy, then renames
 // The folder is private: it is never served to the browser (static serving is dist/ only).
 import {
-  copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync,
+  copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { dirname } from 'node:path';
 
 const queues = new Map();
 
-// After-write hooks: used by store.js to mirror teachers.json into Postgres.
-// Hooks may return a promise; whenDataWritesDone() waits for all of them.
+// After-write / after-remove hooks: used by store.js to mirror DATA_DIR into
+// Postgres. Hooks may return a promise; whenDataWritesDone() waits for all of them.
 const listeners = [];
+const removeListeners = [];
 let pending = Promise.resolve();
 
 /** fn(path, data) runs after every successful write; may be async. Returns an unsubscribe. */
@@ -23,23 +24,50 @@ export function onDataWritten(fn) {
   };
 }
 
+/** fn(path, tree) runs after a file is deleted or a directory moved away.
+ * tree=true means "everything under this path is gone". Returns an unsubscribe. */
+export function onDataRemoved(fn) {
+  removeListeners.push(fn);
+  return () => {
+    const i = removeListeners.indexOf(fn);
+    if (i >= 0) removeListeners.splice(i, 1);
+  };
+}
+
 /** Resolves when every hook queued so far has settled. */
 export function whenDataWritesDone() {
   return pending;
 }
 
-function notify(path, data) {
-  for (const fn of listeners) {
-    let out;
-    try {
-      out = Promise.resolve(fn(path, data));
-    } catch (e) {
-      out = Promise.reject(e);
-    }
-    pending = pending.then(() => out).catch((e) => {
-      console.warn(`[data] after-write hook failed for ${path}: ${e.message}`);
-    });
+function queue(label, fn) {
+  let out;
+  try {
+    out = Promise.resolve(fn());
+  } catch (e) {
+    out = Promise.reject(e);
   }
+  pending = pending.then(() => out).catch((e) => {
+    console.warn(`[data] after-write hook failed for ${label}: ${e.message}`);
+  });
+}
+
+function notify(path, data) {
+  for (const fn of listeners) queue(path, () => fn(path, data));
+}
+
+function notifyRemoved(path, tree) {
+  for (const fn of removeListeners) queue(path, () => fn(path, tree));
+}
+
+/** Delete a file and tell remove-hooks (store.js drops its mirror row). */
+export function removeFileSync(path) {
+  unlinkSync(path);
+  notifyRemoved(path, false);
+}
+
+/** A directory was moved away (e.g. a teacher folder into trash): drop everything under it. */
+export function notifyDirRemoved(dir) {
+  notifyRemoved(dir, true);
 }
 
 /** Run fn exclusively for this file path (serialises async callers too). */

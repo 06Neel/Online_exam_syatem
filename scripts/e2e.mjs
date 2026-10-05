@@ -34,6 +34,7 @@ async function startServer() {
   const server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
+      DATABASE_URL: '',   // the e2e suite runs file-only - never mirror into a real database
       PORT: String(PORT),
       NODE_ENV: 'production',
       DATA_DIR,

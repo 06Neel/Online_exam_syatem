@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
-import { existsSync } from 'node:fs';
+import { existsSync, writeSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadBank, saveQuestion, deleteQuestion, getFacts, unitsSummary, publicQuestion, ownerDirFor, recordUpload, listUploads, deleteUpload, setSummaries, getSet, appendSet, renameSet, setDisplayName, loadSetQuestions, sanitizeSettings, saveSetQuestion, removeSetQuestion, duplicateSet } from './bank.js';
@@ -15,7 +15,7 @@ import { fileUnitList, DEFAULT_SET_NAME } from '../shared/units.js';
 import { getUnits, saveUnits, validateUnits } from './units.js';
 import { listClasses, createClass, updateClass, deleteClass } from './classes.js';
 import { listReports, getReport, deleteReport, needsReview } from './reports.js';
-import { ensureDir, writeJsonSync } from './filesafe.js';
+import { ensureDir, whenDataWritesDone, writeJsonSync } from './filesafe.js';
 import { loadEnv } from './env.js';
 import { initAuth, verifyToken, listTeachers } from './auth.js';
 import { initStore, storeEnabled } from './store.js';
@@ -45,6 +45,8 @@ function isLocal(origin = '') {
 }
 
 app.disable('x-powered-by');
+// restore uploads are much bigger than a normal request: parse this path first, wider
+app.use('/api/admin/import', express.json({ limit: '20mb' }));
 app.use(express.json({ limit: '512kb' }));  // room for a 200-question upload
 
 const apiLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
@@ -56,7 +58,20 @@ const store = new SessionStore(io);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', createAdminRouter(store));
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, sessions: store.list().length }));
+// health doubles as a durability checkpoint: once it answers, every mirror
+// write queued so far has reached the database (capped so a slow database
+// cannot hold a keep-alive ping hostage)
+app.get('/api/health', async (_req, res) => {
+  await Promise.race([
+    whenDataWritesDone(),
+    new Promise((r) => setTimeout(r, 2000)),
+  ]);
+  res.json({
+    ok: true,
+    sessions: store.list().length,
+    storage: storeEnabled() ? 'database' : 'file',
+  });
+});
 
 // Unit counts for the quiz builder: only the shared built-in bank counts here.
 // Uploaded banks keep their own counts inside /api/sets - their questions must
@@ -848,15 +863,42 @@ setInterval(() => {
   }
 }, SWEEP_MS).unref?.();
 
+// A platform restart/redeploy sends SIGTERM: flush pending mirror writes first
+// so the database matches the disk exactly when the process goes away.
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.once(sig, () => {
+    Promise.race([
+      whenDataWritesDone(),
+      new Promise((r) => setTimeout(r, 3000)),
+    ]).finally(() => process.exit(0));
+  });
+}
+
 async function start() {
-  await initStore();     // Postgres account mirror - no-op without DATABASE_URL
+  try {
+    await initStore();   // Postgres mirror - no-op without DATABASE_URL, FATAL with an unreachable one
+  } catch (e) {
+    const block = [
+      '',
+      '============================================================',
+      ' FATAL: the database is unreachable - refusing to start',
+      '------------------------------------------------------------',
+      ` ${e.message}`,
+      '============================================================',
+      '',
+    ].join('\n');
+    // synchronous write: process.exit() would drop an async console.error on a pipe
+    try { writeSync(2, block); } catch { console.error(block); }
+    process.exit(1);
+  }
   await initAuth();
   store.restoreAll(); // quizzes that were live before a restart pick up where they left off
   http.listen(PORT, () => {
     console.log(`🐍 Python Adventure server on :${PORT}`);
     console.log(`   bank: ${loadBank().questions.length} questions`);
     console.log(`   data folder: ${DATA_DIR}`);
-    if (storeEnabled()) console.log('   accounts: mirrored to Postgres (survive redeploys)');
+    if (storeEnabled()) console.log('   storage: mirrored to Postgres (survives restarts and redeploys)');
+    else console.log('   storage: local files only (no DATABASE_URL set)');
     if (process.env.NODE_ENV !== 'production') console.log(`   ws allowed origins: any (dev)`);
   });
 }

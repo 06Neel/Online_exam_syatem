@@ -162,6 +162,7 @@ async function bootServer() {
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
+      DATABASE_URL: '',   // tests run file-only - never mirror into a real database
       PORT: String(PORT),
       NODE_ENV: 'test',
       DATA_DIR,
@@ -188,6 +189,7 @@ async function restartServer() {
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
+      DATABASE_URL: '',   // tests run file-only - never mirror into a real database
       PORT: String(PORT),
       NODE_ENV: 'test',
       DATA_DIR,

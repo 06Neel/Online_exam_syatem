@@ -7,10 +7,10 @@
 //   4. data/teachers/<id>/uploads/*.json     that teacher's uploaded batches, in order
 //
 // Everything under data/ is private: the static server only serves dist/.
-import { readFileSync, readdirSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureDir, readJsonSync, writeJsonSync, withLock } from './filesafe.js';
+import { ensureDir, readJsonSync, removeFileSync, writeJsonSync, withLock } from './filesafe.js';
 import { sanitizeId } from './auth.js';
 import { getUnits } from './units.js';
 import { DATA_DIR, TEACHERS_DIR } from './paths.js';
@@ -595,7 +595,7 @@ export function deleteUpload(owner, file) {
   });
   if (removed) {
     writeJsonSync(path, { ...index, batches });
-    try { if (existsSync(join(dir, safe))) unlinkSync(join(dir, safe)); } catch { /* already gone */ }
+    try { if (existsSync(join(dir, safe))) removeFileSync(join(dir, safe)); } catch { /* already gone */ }
     loadBank({ fresh: true, owner });
   }
   return removed;

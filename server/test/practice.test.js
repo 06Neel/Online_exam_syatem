@@ -20,7 +20,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 test.before(async () => {
   rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', DATA_DIR, PA_SESSIONS_DIR: SESSIONS_DIR },
+    env: { ...process.env, DATABASE_URL: '', PORT: String(PORT), NODE_ENV: 'test', DATA_DIR, PA_SESSIONS_DIR: SESSIONS_DIR },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server.stderr.on('data', (d) => process.stderr.write(d));

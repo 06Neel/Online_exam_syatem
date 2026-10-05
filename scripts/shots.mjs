@@ -33,6 +33,7 @@ async function signIn(page) {
 let server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
   env: {
     ...process.env,
+    DATABASE_URL: '',   // screenshots run file-only - never mirror into a real database
     PORT: String(PORT),
     NODE_ENV: 'production',
     DATA_DIR,

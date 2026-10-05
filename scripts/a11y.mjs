@@ -47,6 +47,7 @@ async function startServer() {
   server = spawn(process.execPath, [join(ROOT, 'server', 'index.js')], {
     env: {
       ...process.env,
+      DATABASE_URL: '',   // the a11y run is file-only - never mirror into a real database
       PORT: String(PORT),
       NODE_ENV: 'production',
       DATA_DIR,

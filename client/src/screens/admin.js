@@ -280,6 +280,66 @@ export function render(root) {
       hint ? h('span', { class: 'hint' }, hint) : null);
   }
 
+  // ---------- backup & restore ----------
+  async function exportData() {
+    try {
+      const data = await api('/api/admin/export');
+      const stamp = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = h('a', { href: url, download: `python-adventure-backup-${stamp}.json` });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      const n = data.files ? Object.keys(data.files).length : 0;
+      toast(`Backup downloaded (${n} files).`, '', 3000);
+    } catch (e) {
+      toast(e.message || 'Could not export the data.', 'bad');
+    }
+  }
+
+  function restoreData() {
+    const input = h('input', { type: 'file', accept: 'application/json,.json', style: { display: 'none' } });
+    document.body.append(input);
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+      let parsed;
+      try {
+        parsed = JSON.parse(await file.text());
+      } catch {
+        toast('That file is not valid JSON.', 'bad');
+        return;
+      }
+      if (!parsed?.files || typeof parsed.files !== 'object') {
+        toast('That file is not a Python Adventure backup.', 'bad');
+        return;
+      }
+      const count = Object.keys(parsed.files).length;
+      confirm({
+        title: 'Restore this backup?',
+        body: `It replaces ALL stored data - teachers, question banks, units, classes, reports and sessions - with the ${count} file(s) from the backup. Everyone is signed out and any running quiz stops. This cannot be undone.`,
+        confirmLabel: `Replace everything (${count} files)`,
+        onConfirm: async () => {
+          try {
+            const res = await api('/api/admin/import', {
+              method: 'POST', body: { confirm: 'replace', files: parsed.files },
+            });
+            toast(`Backup restored: ${res.files} files, ${res.teachers} teachers.`, '', 3500);
+            loadOverview();
+            loadTeachers();
+            loadSessions();
+          } catch (e) {
+            toast(e.message || 'Restore failed.', 'bad');
+          }
+        },
+      });
+    });
+    input.click();
+  }
+
   // ---------- sessions ----------
   async function loadSessions() {
     try {
@@ -335,7 +395,15 @@ export function render(root) {
 
       h('div', { class: 'card' },
         h('h2', { style: { marginTop: 0 } }, 'Running sessions'),
-        sessionsBox)));
+        sessionsBox),
+
+      h('div', { class: 'card' },
+        h('h2', { style: { marginTop: 0 } }, 'Data backup'),
+        h('p', { class: 'muted small' },
+          'One downloadable file with everything private: teacher accounts (passwords stay hashed), question banks, units, classes, reports and session history. Restore it here or on a fresh install.'),
+        h('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap' } },
+          h('button', { class: 'btn primary', type: 'button', onClick: exportData }, 'Export all data'),
+          h('button', { class: 'btn ghost', type: 'button', onClick: restoreData }, 'Restore from backup')))));
 
   loadOverview();
   loadTeachers();

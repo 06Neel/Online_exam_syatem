@@ -9,7 +9,7 @@ import { createHash, randomBytes, scrypt as _scrypt, timingSafeEqual } from 'nod
 import { promisify } from 'node:util';
 import { cpSync, existsSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ensureDir, readJsonSync, updateJson, whenDataWritesDone, withLock, writeJsonSync } from './filesafe.js';
+import { ensureDir, notifyDirRemoved, readJsonSync, updateJson, whenDataWritesDone, withLock, writeJsonSync } from './filesafe.js';
 import { DATA_DIR, TEACHERS_FILE, TEACHERS_DIR, SESSIONS_DIR, TRASH_DIR } from './paths.js';
 
 // re-exported: several modules (and tests) import these from here
@@ -24,6 +24,13 @@ const LOCK_MS = 15 * 60 * 1000;
 const GENERIC_ERROR = 'Invalid ID or password';
 
 const tokens = new Map();  // token -> { role, id, name, mustChangePassword, lastSeen }
+
+/** Drop every in-memory sign-in token (used after an admin restores a backup). */
+export function revokeAllTokens() {
+  const n = tokens.size;
+  tokens.clear();
+  return n;
+}
 const fails = new Map();   // lowercased id -> { count, lockedUntil }
 
 const sha = (s) => createHash('sha256').update(String(s)).digest();
@@ -353,6 +360,7 @@ export async function deleteTeacher(id) {
     } catch (e) {
       return { error: `Could not move the teacher's folder: ${e.message}` };
     }
+    notifyDirRemoved(folder);   // the mirror drops everything under the old path
   }
   const data = load();
   data.teachers = data.teachers.filter((t) => t.id !== key);

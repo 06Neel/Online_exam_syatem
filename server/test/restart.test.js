@@ -19,6 +19,7 @@ const SEED_PW = 'restart-pass-123';
 
 const ENV = {
   ...process.env,
+  DATABASE_URL: '',   // tests run file-only - never mirror into a real database
   PORT: String(PORT),
   NODE_ENV: 'test',
   DATA_DIR,

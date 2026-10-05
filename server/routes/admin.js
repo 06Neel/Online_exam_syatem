@@ -2,12 +2,26 @@
 // Every route is gated by requireAuth('admin'), which answers 404 for anyone
 // else, so the admin surface looks like it does not exist.
 import { Router } from 'express';
+import { join } from 'node:path';
 import { requireAuth } from './auth.js';
 import {
   createTeacher, deleteTeacher, generatePassword, listTeachers, resetTeacherPassword,
   setTeacherActive, updateTeacher, adminConfig, teachersFileStats, listTeacherFolders,
+  revokeAllTokens,
 } from '../auth.js';
 import { loadBank } from '../bank.js';
+import { removeFileSync, whenDataWritesDone, writeJsonSync } from '../filesafe.js';
+import { DATA_DIR } from '../paths.js';
+import { exportSnapshotFiles, listDataFileRels } from '../store.js';
+
+/** Backup paths are relative, .json and never leave DATA_DIR (no .., no drive letters). */
+function safeRelPath(key) {
+  if (typeof key !== 'string' || !key) return false;
+  if (key.includes('\\') || key.includes('..') || key.startsWith('/') || /^[A-Za-z]:/.test(key)) return false;
+  if (!key.toLowerCase().endsWith('.json')) return false;
+  if (key.startsWith('trash/') || key.includes('.bak') || key.includes('.tmp')) return false;
+  return true;
+}
 
 export function createAdminRouter(store) {
   const router = Router();
@@ -91,6 +105,82 @@ export function createAdminRouter(store) {
     } catch (e) {
       console.error('[admin] delete teacher failed:', e);
       res.status(500).json({ error: 'Could not delete the teacher.' });
+    }
+  });
+
+  // ---------------------------------------------------------- backup & restore
+  // One JSON file with everything private: accounts (hashed), banks, units,
+  // classes, reports, settings and session snapshots.
+  router.get('/export', (_req, res) => {
+    const files = exportSnapshotFiles();
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Disposition', `attachment; filename="python-adventure-backup-${stamp}.json"`);
+    res.json({
+      app: 'python-adventure',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      storage: files['teachers.json'] ? 'ok' : 'empty',
+      files,
+    });
+  });
+
+  router.post('/import', async (req, res) => {
+    try {
+      const body = req.body || {};
+      if (body.confirm !== 'replace') {
+        return res.status(400).json({ error: 'Confirm the restore - it replaces all stored data.' });
+      }
+      const files = body.files;
+      if (!files || typeof files !== 'object' || Array.isArray(files)) {
+        return res.status(400).json({ error: 'That backup has no "files" object.' });
+      }
+      const entries = Object.entries(files);
+      if (!entries.length) return res.status(400).json({ error: 'That backup is empty.' });
+      for (const [key, value] of entries) {
+        if (!safeRelPath(key)) return res.status(400).json({ error: `Unsafe path in backup: ${key}` });
+        if (value === undefined || typeof value === 'function') {
+          return res.status(400).json({ error: `Backup entry ${key} has no data.` });
+        }
+      }
+
+      // 1) write everything from the backup (each write is mirrored to the database)
+      for (const [key, value] of entries) {
+        writeJsonSync(join(DATA_DIR, ...key.split('/')), value);
+      }
+      // 2) remove what is no longer in the backup (mirrored deletions too)
+      const incoming = new Set(entries.map(([k]) => k));
+      let removed = 0;
+      for (const key of listDataFileRels()) {
+        if (incoming.has(key)) continue;
+        try { removeFileSync(join(DATA_DIR, ...key.split('/'))); removed++; } catch { /* already gone */ }
+      }
+      await whenDataWritesDone();   // durable before we answer
+
+      // 3) refresh everything held in memory
+      const revoked = revokeAllTokens();
+      loadBank({ fresh: true });
+      const owners = new Set();
+      for (const key of incoming) {
+        const m = /^teachers\/([^/]+)\//.exec(key);
+        if (m) owners.add(m[1]);
+      }
+      for (const owner of owners) loadBank({ fresh: true, owner });
+      const droppedSessions = store.clearAll();
+      const restoredSessions = store.restoreAll();
+
+      const teachers = listTeachers().length;
+      console.log(`[admin] backup restored: ${entries.length} files (${removed} removed), ${teachers} teachers, ${droppedSessions} live session(s) replaced by ${restoredSessions} restored`);
+      res.json({
+        ok: true,
+        files: entries.length,
+        removed,
+        teachers,
+        sessions: restoredSessions,
+        revokedTokens: revoked,
+      });
+    } catch (e) {
+      console.error('[admin] import failed:', e);
+      res.status(500).json({ error: `Restore failed: ${e.message}` });
     }
   });
 

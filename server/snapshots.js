@@ -2,9 +2,9 @@
 // Every meaningful mutation rewrites the file; ending a session drops it
 // (the finished report takes over). On boot the store reloads them, so a
 // server restart never swallows a live quiz.
-import { readdirSync, existsSync, unlinkSync } from 'node:fs';
+import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJsonSync, writeJsonSync, ensureDir } from './filesafe.js';
+import { ensureDir, readJsonSync, removeFileSync, writeJsonSync } from './filesafe.js';
 import { SESSIONS_DIR as DEFAULT_SESSIONS_DIR } from './paths.js';
 
 // tests point this at their own folder so parallel servers never share snapshots
@@ -41,6 +41,6 @@ export function dropSnapshot(code) {
   if (!okCode(code)) return false;
   const path = join(SESSIONS_DIR, `${code}.json`);
   if (!existsSync(path)) return false;
-  try { unlinkSync(path); } catch { return false; }
+  try { removeFileSync(path); } catch { return false; }
   return true;
 }

@@ -1,9 +1,9 @@
 // Finished-session reports, saved per teacher under data/teachers/<id>/reports/.
 // Written the moment a quiz ends, so history survives restarts and the teacher
 // can reopen, print or re-export any past class run.
-import { readdirSync, existsSync, statSync, unlinkSync } from 'node:fs';
+import { readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJsonSync, writeJsonSync } from './filesafe.js';
+import { readJsonSync, removeFileSync, writeJsonSync } from './filesafe.js';
 import { ownerDirFor } from './bank.js';
 
 const CODE_RE = /^[A-Za-z0-9]{4}$/;
@@ -66,7 +66,7 @@ export function deleteReport(owner, code) {
   if (!dir || !c) return false;
   const path = join(dir, `${c}.json`);
   if (!existsSync(path)) return false;
-  try { unlinkSync(path); } catch { return false; }
+  try { removeFileSync(path); } catch { return false; }
   return true;
 }
 

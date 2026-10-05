@@ -10,6 +10,7 @@ server/data/
 # Env / logs
 .env
 .env.*
+!.env.example
 *.log
 npm-debug.log*
 

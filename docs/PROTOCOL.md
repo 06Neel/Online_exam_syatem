@@ -15,15 +15,15 @@ Read this before touching client or server code. Everything below is already imp
 | `server/bank.js` | `loadBank()`, `saveQuestion()`, `deleteQuestion()`, `getFacts()`, `unitsSummary()`, `publicQuestion()`, `ownerDirFor()` (per-teacher layering), question-bank helpers (`getSet/setSummaries/recordUpload/appendSet/renameSet/loadSetQuestions/setDisplayName/sanitizeSettings/saveSetQuestion/removeSetQuestion/duplicateSet/clearOwnerOverride/writeSetFile`) |
 | `server/auth.js` | scrypt passwords, in-memory tokens (60-min sliding), lockouts, admin via `ADMIN_PASSWORD` |
 | `server/routes/auth.js` | `/api/auth/*` (login, logout, me, change-password) |
-| `server/routes/admin.js` | `/api/admin/*` (admin-only, 404 otherwise) |
+| `server/routes/admin.js` | `/api/admin/*` (admin-only, 404 otherwise), incl. `GET /export` + `POST /import` (backup/restore) |
 | `server/sessions.js` | `Session` (`pause()/resume()`, controller bookkeeping, `lastActivity`), `SessionStore` (`restoreAll()`, `sweep()`), `judge()` |
 | `server/snapshots.js` | running-session snapshots under `<DATA_DIR>/sessions` (`PA_SESSIONS_DIR` overrides); `MAX_AGE_MS` from `SESSION_MAX_AGE_HOURS` (default 12h) |
 | `server/paths.js` | **the one place that decides where private data lives**: `DATA_DIR` (env, default `server/data`) + `TEACHERS_FILE/TEACHERS_DIR/SESSIONS_DIR/TRASH_DIR`. Runs `loadEnv()` at import so `.env` is read before any path is computed |
-| `server/store.js` | optional Postgres mirror for **teacher accounts** (`DATABASE_URL`): `initStore()` runs before `initAuth()`, fills an empty `teachers.json` from the `teachers` table, then mirrors every `TEACHERS_FILE` write into it (whole doc per write, one transaction). No `DATABASE_URL` -> off, files only; a broken database logs a warning and the app keeps running on disk |
+| `server/store.js` | Postgres mirror for **all data** (`DATABASE_URL`): a single `files(path, data, updated_at)` table mirrors every JSON file under `DATA_DIR` (except `trash/`, `.bak`, `.tmp`). `initStore()` runs before `initAuth()`: migrates the old accounts-only `teachers` table into `files` (then drops it), imports local files that are newer (`ON CONFLICT DO NOTHING`), restores missing files from the database, registers the after-write/after-remove hooks. `restoreFromDb()` is idempotent, so it runs again after `initAuth()` + session restore to cover freshly seeded files. **Unreachable database = refuse to start** (throws; `index.js` prints a FATAL block and exits 1 - no silent fallback, no default data). Also `exportSnapshotFiles()` / `listDataFileRels()` for backup, `closeStore()` (used by tests) |
 | `server/reports.js` | saved reports: `saveReport/listReports/getReport/deleteReport/needsReview` |
 | `server/classes.js` | per-teacher classes & sections; `server/units.js` | per-teacher unit renames |
-| `server/filesafe.js` | `withLock`, atomic `writeJsonSync/writeJson/updateJson`; `readJsonSync` falls back to the `.bak` copy when the main file is unreadable/corrupt (never on ENOENT); after-write hooks (`onDataWritten`, `whenDataWritesDone`) that store.js uses to mirror `teachers.json` into Postgres - `updateJson` waits for them, so account changes are durable before the API reports success |
-| `server/index.js` | express + socket.io, HTTP API, rate limits |
+| `server/filesafe.js` | `withLock`, atomic `writeJsonSync/writeJson/updateJson`, `removeFileSync`, `notifyDirRemoved`; `readJsonSync` falls back to the `.bak` copy when the main file is unreadable/corrupt (never on ENOENT); hooks `onDataWritten`/`onDataRemoved`/`whenDataWritesDone` that store.js uses to keep Postgres in sync - `updateJson` and `auth.save()` wait for them, so an API call is durable before it reports success; `whenDataWritesDone()` also backs the `/api/health` durability checkpoint and the SIGTERM flush |
+| `server/index.js` | express + socket.io, HTTP API, rate limits; boots `initStore()` first (FATAL console block + `exit 1` when `DATABASE_URL` is unreachable), SIGTERM/SIGINT flush of pending mirror writes, `/api/health` durability checkpoint (awaits pending mirrors, returns `storage`), JSON body cap 512kb except `/api/admin/import` (20mb) |
 | `client/src/ui.js` | `h(tag, props, ...kids)`, `mount(root, ...nodes)`, `toast()`, `confetti()`, `climbToast()`, `modal()`, `fmtClock()`, `pct()` |
 | `client/src/net.js` | `getSocket()`, `emitAck(event, payload)`, `on(event, cb)`, `request(url, {token, body, method})` |
 | `client/src/state.js` | `store`, `save(patch)` - persisted keys: `nickname, team, code, playerId, teacherToken, teacherCode, practiceConfig, lastReport, editorBankId, quizBankId` |
@@ -61,13 +61,15 @@ summaries - never from merged lists.
 - **Storage root**: every private file lives under `DATA_DIR` (`server/paths.js`), one place to
   redirect: `DATA_DIR=/var/lib/python-adventure` (env or `.env`) moves `teachers.json`,
   `teachers/`, `trash/` and `sessions/` in one step. Default: `server/data` in the repo.
-  The boot log prints the absolute folder. **On hosts that wipe files on every restart or
-  redeploy (Antideploy, free tiers, scale-to-zero), the default folder is temporary**:
-  uploads/reports vanish with the container. Teacher **accounts** are the exception when
-  `DATABASE_URL` is set (`server/store.js`): they are mirrored into Postgres and restored into
-  `teachers.json` on the next boot. For everything else, point `DATA_DIR` at a persistent disk
-  or accept that only in-memory state (running sessions are also snapshotted into `DATA_DIR`)
-  lasts - see README "Hosting".
+  The boot log prints the absolute folder.
+- **Durability**: files are the working copy, Postgres is the durable copy. With
+  `DATABASE_URL` set (`server/store.js`), every file write and removal under `DATA_DIR` is
+  mirrored into the `files` table and missing files are restored on boot - so restarts,
+  redeploys and wiped disks (Antideploy's temporary filesystem) change nothing. Boot order:
+  `initStore()` (import local, restore from DB, register hooks) -> `initAuth()` ->
+  `store.restoreAll()` for session snapshots. Unreachable database -> the app refuses to
+  start (FATAL block), never a silent file-only fallback. Without `DATABASE_URL` the app is
+  file-only (local development): point `DATA_DIR` at a persistent disk or accept resets.
 - Atomic JSON everywhere via `server/filesafe.js` (tmp -> bak -> rename, per-path locks).
   `readJsonSync` recovers from the `.bak` copy if the main file is unreadable (a crash can
   otherwise leave a truncated file that boots the app empty-handed).
@@ -215,7 +217,7 @@ login 10/min and practice 30/min), JSON body cap 512kb.
 
 | Route | Auth | Returns |
 |---|---|---|
-| `GET /api/health` | - | `{ok, sessions}` |
+| `GET /api/health` | - | `{ok, sessions, storage}` - `storage` is `database` or `file`; the handler first waits (max 2s) for pending mirror writes, so it doubles as a durability checkpoint before a deploy kills the process |
 | `GET /api/units` | - | `{[unit]:{total,byDifficulty,types}}` - shared/default layer only (bank units excluded) |
 | `GET /api/units/list` | t | `[{id, name, custom}]` (your renames + built-ins) |
 | `PUT /api/units/list` | t | `{ok}` - rename built-ins / add custom units (unsafe deletes rejected) |
@@ -250,7 +252,9 @@ login 10/min and practice 30/min), JSON body cap 512kb.
 | `POST /api/admin/teachers` | a | create account (returns one-time password) |
 | `PATCH /api/admin/teachers/:id` | a | rename/reset password flags |
 | `POST /api/admin/teachers/:id/password` `/status` | a | one-time password / suspend |
-| `DELETE /api/admin/teachers/:id` | a | `{ok}` |
+| `DELETE /api/admin/teachers/:id` | a | `{ok}` (folder -> `trash/`, accounts row removed, tokens revoked; the removal is mirrored too) |
+| `GET /api/admin/export` | a | `{files: {<rel path>: <parsed JSON>}}` - every JSON file under `DATA_DIR` (no `trash/`), sent as `python-adventure-backup-<date>.json` |
+| `POST /api/admin/import` | a | body `{confirm:'replace', files}` (20mb cap) - validates every path, writes the backup files, deletes files not in it, flushes the mirror, revokes all tokens, reloads banks; returns `{ok, files, removed, revokedTokens}` |
 
 Server-side question validation for uploads (`shared/validate.js`, same code as
 `npm run validate` and the browser preview): ids `u<unit>-q<2 digits>`, unit in bank,
