@@ -11,7 +11,8 @@ import * as practice from './screens/practice.js';
 import * as teacherHome from './screens/teacherHome.js';
 import * as teacherLive from './screens/teacherLive.js';
 import * as editor from './screens/editor.js';
-import * as upload from './screens/upload.js';
+import * as banks from './screens/banks.js';
+import * as quizWizard from './screens/quizWizard.js';
 import * as units from './screens/units.js';
 import * as reports from './screens/reports.js';
 import * as report from './screens/report.js';
@@ -30,9 +31,12 @@ const ROUTES = [
   { re: /^#\/practice$/, screen: practice },
   { re: /^#\/teacher\/login$/, screen: login },
   { re: /^#\/teacher$/, screen: teacherHome, auth: 'teacher' },
+  { re: /^#\/teacher\/new$/, screen: quizWizard, auth: 'teacher' },
+  { re: /^#\/teacher\/banks$/, screen: banks, auth: 'teacher' },
+  // old upload URL: uploading now lives on the Question Banks tab
+  { re: /^#\/teacher\/upload$/, screen: banks, auth: 'teacher' },
   { re: /^#\/teacher\/live$/, screen: teacherLive, auth: 'teacher' },
   { re: /^#\/teacher\/edit$/, screen: editor, auth: 'teacher' },
-  { re: /^#\/teacher\/upload$/, screen: upload, auth: 'teacher' },
   { re: /^#\/teacher\/units$/, screen: units, auth: 'teacher' },
   { re: /^#\/teacher\/reports$/, screen: reports, auth: 'teacher' },
   { re: /^#\/teacher\/report\/[A-Za-z0-9]{4}$/, screen: report, auth: 'teacher' },
@@ -58,7 +62,9 @@ function guardFor(match) {
 
 function render() {
   const hash = location.hash || '#/';
-  const match = ROUTES.find((r) => r.re.test(hash)) || ROUTES[0];
+  // match the path only - "#/join?code=ABCD" must still land on the join screen
+  const [path, query = ''] = hash.split('?');
+  const match = ROUTES.find((r) => r.re.test(path)) || ROUTES[0];
   const blocked = guardFor(match);
   if (blocked) return go(blocked);                                        // hashchange re-runs render
 
@@ -67,11 +73,14 @@ function render() {
   } catch (e) {
     console.warn('cleanup failed', e);
   }
+  // teacher/admin screens get the pro palette (teal + indigo);
+  // student screens keep the playful gold.
+  document.body.classList.toggle('pro', !!match.auth || match.screen === login);
   current = match.screen;
   const main = document.getElementById('main');
   mount(main, h('div', { class: 'route' }));
   const holder = main.firstElementChild;
-  const params = Object.fromEntries(new URLSearchParams(hash.split('?')[1] || ''));
+  const params = Object.fromEntries(new URLSearchParams(query));
   current.render(holder, params);
   document.title = current.title ? `${current.title} · Python Adventure` : 'Python Adventure';
 

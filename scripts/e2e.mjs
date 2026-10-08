@@ -100,12 +100,24 @@ try {
   check(true, 'sign-in lands on the teacher dashboard');
 
   step('Teacher creates a session');
-  await teacher.getByRole('button', { name: /Create & open lobby/i }).click();
+  // Home: quick start modal -> straight into the lobby
+  await teacher.getByRole('button', { name: /Quick start/i }).click();
+  await teacher.getByRole('button', { name: /Create and open lobby/i }).click();
   await teacher.waitForURL(/#\/teacher\/live/, { timeout: 10000 });
   await teacher.waitForSelector('.controls .mono');
   const code = (await teacher.locator('.controls .mono').first().textContent()).trim();
   check(/^[A-Z0-9]{4}$/.test(code), `session code shown (${code})`);
+
+  // join code visibility: the code + QR are one click away, in any phase
+  await teacher.getByRole('button', { name: /Show the join code and QR code/i }).click();
+  await teacher.locator('.modal .qr img').waitFor({ timeout: 8000 });
+  const modalCode = await teacher.locator('.modal .bigcode').textContent();
+  check(modalCode.trim() === code, `share dialog shows the same code (${modalCode.trim()})`);
+  await teacher.getByRole('button', { name: /^Done$/ }).click();
+
   await teacher.waitForSelector('.card', { timeout: 8000 }); // lobby/roster card painted
+  await teacher.locator('.card .qr img').first().waitFor({ timeout: 8000 });
+  check(true, 'lobby shows a scannable join QR too');
 
   // ---------------- student: join ----------------
   step('Student joins');
@@ -138,8 +150,12 @@ try {
   check(true, 'student sees the first question');
   const teacherQuestion = await teacher.getByText(/Question 1/).count();
   check(teacherQuestion > 0, 'teacher dashboard shows question 1');
-  check(await student.locator('.timer .val').isVisible(), 'countdown timer is on screen');
-  check(await student.getByText(/⭐\s*\d+/).first().isVisible().catch(() => false), 'score chip is on screen');
+  // the default is timer OFF: students pace themselves, so no countdown yet
+  check(!(await student.locator('.timer .val').isVisible().catch(() => true)),
+    'no countdown by default (question timer is off)');
+  await student.getByText(/No clock - take your time/).first().waitFor({ timeout: 8000 });
+  check(true, 'student sees the own-pace notice');
+  check(await student.getByText(/⭐\s*[\d.]+/).first().isVisible().catch(() => false), 'score chip is on screen');
 
   // ---------------- power-ups (before answering, while the card is live) ----------------
   step('Power-ups');
@@ -147,6 +163,12 @@ try {
   check(await hintBtn.count() > 0, 'hint control present on the question');
   const fiftyBtn = student.getByRole('button', { name: /50-50/ }).first();
   check(await fiftyBtn.count() > 0, '50-50 control present');
+
+  // ---------------- teacher turns the shared clock on ----------------
+  step('Teacher switches the timer on');
+  await teacher.locator('[aria-label="Turn the question timer back on - the next question is shared"]').click();
+  await student.waitForSelector('.timer .val', { timeout: 10000 });
+  check(await student.locator('.timer .val').isVisible(), 'countdown timer is on screen');
 
   // ---------------- teacher controls: pause / resume / extra time ----------------
   step('Teacher controls: pause, resume, +10s');
@@ -185,11 +207,17 @@ try {
   await student.waitForSelector('.explain, .feedback, .result', { timeout: 8000 });
   const feedback = await student.locator('.explain').first().textContent().catch(() => '');
   check((feedback || '').length > 20, `feedback + explanation shown (${(feedback || '').slice(0, 40)}...)`);
-  const scoreChip = await student.evaluate(() => (document.body.innerText.match(/⭐\s*\d+/) || [''])[0]);
-  const scoreNum = Number((scoreChip.match(/\d+/) || [0])[0]);
-  const wasCorrect = /✅|Right|Nailed it/i.test(feedback);
+  const headline = await student.locator('.feedback .headline').first().textContent().catch(() => '');
+  const scoreChip = await student.evaluate(() => (document.body.innerText.match(/⭐\s*[\d.]+/) || [''])[0]);
+  const scoreNum = Number((scoreChip.match(/[\d.]+/) || [0])[0]);
+  const wasCorrect = /✅|Right|Nailed/i.test(`${headline || ''} ${feedback || ''}`);
   if (wasCorrect) check(scoreNum > 0, `correct answer paid out (${scoreChip.trim()})`);
   else check(/⭐/.test(scoreChip), `score chip updated (${scoreChip.trim()})`);
+
+  // standings sit at the top of the student screen, never below the fold
+  await student.locator('.lb-strip:not(.hide)').waitFor({ timeout: 8000 });
+  const stripText = (await student.locator('.lb-strip').textContent()) || '';
+  check(/You/.test(stripText), `standings strip pinned at the top (${stripText.slice(0, 60)}…)`);
 
   // teacher stats arrive after the answer
   await wait(1200);
@@ -212,18 +240,24 @@ try {
   const hintPractice = practice.getByRole('button', { name: /Hint/ }).first();
   check(await hintPractice.count() > 0, 'hint available in practice');
   await hintPractice.click();
-  await practice.waitForSelector('text=Hint (-15)', { timeout: 5000 });
-  check(true, 'hint opens in practice mode');
+  await practice.locator('.explain h2', { hasText: 'Hint (' }).first().waitFor({ timeout: 5000 });
+  check(true, 'hint opens in practice mode (with its marks cost)');
 
   // ---------------- teacher shows answer + ends ----------------
   step('Teacher reveals and ends');
   await teacher.locator('[aria-label="Show the correct answer to the class"]').click();
+  await teacher.getByText('Official answer').first().waitFor({ timeout: 8000 });
+  check(true, 'teacher answer panel appears the moment Show answer is pressed');
+  await student.getByText('The answer is on the board').first().waitFor({ timeout: 8000 });
+  check(true, 'students get the answer in readable text');
+  await student.getByRole('button', { name: /Got it/ }).click();
+
   await teacher.locator('[aria-label="End the quiz and open the report"]').click();
   await teacher.getByRole('button', { name: /^End quiz$/ }).click();
   await teacher.waitForSelector('text=Robo', { timeout: 10000 });
   const reportText = (await teacher.locator('body').textContent()) || '';
   check(/Robo/.test(reportText), 'report lists the student');
-  check(/accuracy|score|Score|report/i.test(reportText), 'report shows scores');
+  check(/accuracy|marks|score|report/i.test(reportText), 'report shows scores');
 
   // ---------------- saved reports: history -> print page ----------------
   step('Saved reports history and print page');
@@ -239,7 +273,7 @@ try {
   // student should be bounced to results
   await student.waitForURL(/#\/results/, { timeout: 10000 });
   const studentResult = (await student.locator('body').textContent()) || '';
-  check(/Robo|Score|score|Result/i.test(studentResult), 'student landed on results');
+  check(/Robo|Marks|Score|score|Result/i.test(studentResult), 'student landed on results');
 
   // ---------------- admin panel ----------------
   step('Admin panel');

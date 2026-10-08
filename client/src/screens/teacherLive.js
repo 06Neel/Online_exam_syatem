@@ -3,11 +3,13 @@ import { h, mount, toast, modal, pct } from '../ui.js';
 import { store, save } from '../state.js';
 import { go } from '../main.js';
 import { emitAck, on, request } from '../net.js';
-import { authToken, signOut } from '../auth.js';
+import { authToken } from '../auth.js';
+import { topbar } from '../topbar.js';
 import { badgeById } from '../../../shared/badges.js';
-import { rankTeams } from '../../../shared/scoring.js';
+import { rankTeams, fmtMarks } from '../../../shared/scoring.js';
 import { unitName as baseUnitName, TYPE_LABELS } from '../../../shared/units.js';
 import { downloadCsv } from '../reporting.js';
+import { joinUrl, qrImg, copyText } from '../qrcodeUi.js';
 
 export const title = 'Live session';
 
@@ -49,6 +51,7 @@ export function render(root, params = {}) {
     players: [],
     stats: null,
     qmeta: null,
+    shown: null, // the "Show answer" payload for the question on screen
     missed: [],
     unitStats: {},
     lb: null,
@@ -75,6 +78,10 @@ export function render(root, params = {}) {
   const copyBtn = h('button', {
     class: 'btn small', type: 'button', 'aria-label': 'Copy the session code', onClick: copyCode,
   }, '📋 Copy');
+  const shareBtn = h('button', {
+    class: 'btn small', type: 'button', 'aria-label': 'Show the join code and QR code',
+    onClick: shareSession,
+  }, '🔗 Share');
   const playersChip = h('span', { class: 'chip' }, '👥 0');
   const statusChip = h('span', { class: 'chip' }, '🎮 Lobby');
   const openChip = h('span', { class: 'chip refresher hide' }, '🖥 also open elsewhere');
@@ -91,14 +98,10 @@ export function render(root, params = {}) {
   const timerBtn = mkBtn('⏱ Timer on', 'Turn the question timer off - students go at their own pace',
     () => flipTimer());
   const controlBtns = [startBtn, pauseBtn, nextBtn, extendBtn, answerBtn, timerBtn, lbBtn, mistakeBtn, endBtn];
-  const signOutBtn = h('button', {
-    class: 'btn small ghost', type: 'button', 'aria-label': 'Sign out of the teacher account',
-    onClick: async () => { await signOut(); go('#/teacher/login'); },
-  }, '⎋ Sign out');
 
   const controls = h('div', { class: 'controls' },
-    codeEl, copyBtn, playersChip, statusChip, openChip,
-    h('div', { class: 'row', style: { marginLeft: 'auto' } }, controlBtns, signOutBtn));
+    codeEl, copyBtn, shareBtn, playersChip, statusChip, openChip,
+    h('div', { class: 'row', style: { marginLeft: 'auto' } }, controlBtns));
 
   // ---------- content slots ----------
   const statsSlot = h('div', { class: 'grid cols-4', style: { marginBottom: '16px' } });
@@ -113,12 +116,14 @@ export function render(root, params = {}) {
   const bodySlot = h('div', null, setLine, statsSlot, rosterCard, questionCard, struggleCard, lbCard, lobbyCard);
   const srTitle = h('h1', { class: 'sr-only' }, 'Live session dashboard');
 
-  mount(root, h('div', { class: 'screen' }, srTitle, controls, bodySlot));
+  mount(root, h('div', { class: 'screen pro' }, topbar('home'), srTitle, controls, bodySlot));
 
   lobbyCard.append(
     h('div', { class: 'center' },
       h('div', { class: 'muted small' }, 'Share this code with your class'),
-      h('div', { class: 'bigcode' }, code)),
+      h('div', { class: 'bigcode' }, code),
+      h('div', { style: { display: 'flex', justifyContent: 'center', marginTop: '8px' } }, qrImg(joinUrl(code), 132)),
+      h('div', { class: 'muted small', style: { marginTop: '4px' } }, 'Scan to join · or type the code')),
     lobbyMeta,
     h('p', { class: 'center muted', style: { marginTop: '10px' } },
       'Students open Python Adventure, choose "Join a live game" and type the code - no accounts needed.'),
@@ -215,10 +220,10 @@ export function render(root, params = {}) {
           h('span', { style: { minWidth: 0, flex: '1' } },
             h('b', null, p.team ? `${p.nickname} · ${p.team}` : p.nickname),
             h('div', { class: 'meta' }, metaLine)),
-          h('span', { class: 'score' }, p.score ?? 0));
+          h('span', { class: 'score' }, fmtMarks(p.score ?? 0)));
       })));
 
-    const head = ['Name', 'Team', 'Q#', 'Correct', 'Wrong', 'Score', 'Rank', 'Status'];
+    const head = ['Name', 'Team', 'Q#', 'Correct', 'Wrong', 'Marks', 'Rank', 'Status'];
     const pacedTable = !timerOn() && view.qIndex >= 0;
     rosterCard.append(h('div', { class: 'table-wrap', style: { marginTop: '12px' } },
       h('table', null,
@@ -234,7 +239,7 @@ export function render(root, params = {}) {
               : '—'),
           h('td', { class: 'num' }, p.correct ?? 0),
           h('td', { class: 'num' }, p.wrong ?? 0),
-          h('td', { class: 'num' }, p.score ?? 0),
+          h('td', { class: 'num' }, fmtMarks(p.score ?? 0)),
           h('td', { class: 'num' }, p.rank ? `#${p.rank}` : '—'),
           h('td', null, p.finished ? 'finished' : p.status)))))));
   }
@@ -285,9 +290,11 @@ export function render(root, params = {}) {
         h('span', { class: 'bad', style: { width: `${100 - goodPct}%` } })));
 
     // answer-option distribution
-    const opts = st?.options || q?.options || null;
+    const shown = view.shown && view.shown.qIndex === view.qIndex ? view.shown : null;
+    const opts = st?.options || q?.options || shown?.options || null;
     const answerIds = new Set();
     if (st?.answer) (Array.isArray(st.answer) ? st.answer : [st.answer]).forEach((a) => answerIds.add(a));
+    else if (shown?.answer) (Array.isArray(shown.answer) ? shown.answer : [shown.answer]).forEach((a) => answerIds.add(a));
     else if (entry?.answer) (Array.isArray(entry.answer) ? entry.answer : [entry.answer]).forEach((a) => answerIds.add(a));
 
     if (st && opts?.length) {
@@ -307,12 +314,14 @@ export function render(root, params = {}) {
       });
     }
 
-    const revealing = !!st?.revealing || view.phase === 'reveal';
+    // the answer panel: the timer ran out, or the teacher pressed "Show answer"
+    const revealing = !!st?.revealing || view.phase === 'reveal' || !!shown;
     if (revealing) {
       const correctText = answerIds.size
         ? [...answerIds].map((id) => opts?.find((o) => o.id === id)?.text || id).join(' · ')
         : entry?.accepted?.join(' / ')
-          || (entry?.pairs || []).map((p) => `${p.left} → ${p.right}`).join(' · ')
+          || shown?.accepted?.join(' / ')
+          || (entry?.pairs || shown?.pairs || []).map((p) => `${p.left} → ${p.right}`).join(' · ')
           || '';
       questionCard.append(h('div', { class: 'explain', style: { marginTop: '14px' } },
         h('h2', null, '✅ Official answer'),
@@ -320,8 +329,8 @@ export function render(root, params = {}) {
           ? h('p', { style: { margin: '0 0 8px', fontWeight: 700 } },
             'Correct answer: ', h('span', { class: 'chip good' }, correctText))
           : h('p', { class: 'muted', style: { margin: '0 0 8px' } }, 'Check the question bank for the accepted answers.'),
-        entry?.explanation
-          ? h('p', { style: { margin: 0 } }, entry.explanation)
+        entry?.explanation || shown?.explanation
+          ? h('p', { style: { margin: 0 } }, entry?.explanation || shown?.explanation)
           : h('p', { class: 'muted small', style: { margin: 0 } },
             view.bank === null ? 'Loading the explanation from your question bank…' : 'No explanation stored for this one.')));
     }
@@ -373,7 +382,7 @@ export function render(root, params = {}) {
 
     if (!lb) {
       lbCard.append(h('div', { class: 'empty', style: { marginTop: '12px' } },
-        'Scores land here as soon as the first answers come in.'));
+        'Marks land here as soon as the first answers come in.'));
       return;
     }
 
@@ -386,7 +395,7 @@ export function render(root, params = {}) {
           `${e.correct ?? 0} right`,
           (e.streak || 0) >= 2 ? `🔥${e.streak}` : null,
         ].filter(Boolean).join(' · '))),
-      h('span', { class: 'pts' }, e.score ?? 0),
+      h('span', { class: 'pts' }, fmtMarks(e.score ?? 0)),
       h('span', { class: 'delta' }, e.rank === 1 ? '👑' : ''));
 
     const teamRow = (t) => {
@@ -396,8 +405,8 @@ export function render(root, params = {}) {
         h('span', { class: 'who' },
           h('b', null, `👥 ${t.name} · ${n} ${n === 1 ? 'member' : 'members'}`),
           h('span', null, (t.members || []).join(', ') || 'nobody yet'),
-          h('span', null, `avg ${t.avg ?? 0} · ${t.correct ?? 0} right · ${pct(t.accuracy || 0)}`)),
-        h('span', { class: 'pts' }, t.score ?? 0),
+          h('span', null, `avg ${fmtMarks(t.avg ?? 0)} · ${t.correct ?? 0} right · ${pct(t.accuracy || 0)}`)),
+        h('span', { class: 'pts' }, fmtMarks(t.score ?? 0)),
         h('span', null));
     };
 
@@ -505,6 +514,30 @@ export function render(root, params = {}) {
     } catch {
       toast(`Could not copy - the code is ${view.code}`, 'bad');
     }
+  }
+
+  /** The join code, QR and link - reachable from any phase, not just the lobby. */
+  function shareSession() {
+    const url = joinUrl(view.code);
+    modal({
+      title: 'Students join with this',
+      body: h('div', { class: 'center' },
+        h('div', { class: 'muted small' }, 'Type the code, or scan the QR code'),
+        h('div', { class: 'bigcode' }, view.code),
+        h('div', { style: { display: 'flex', justifyContent: 'center', marginTop: '10px' } }, qrImg(url, 168)),
+        h('p', { class: 'muted small', style: { margin: '10px 0 0', wordBreak: 'break-all' } }, url)),
+      actions: [
+        {
+          label: 'Copy code', kind: 'ghost', close: false,
+          onClick: async () => { const ok = await copyText(view.code); toast(ok ? 'Code copied.' : `Code is ${view.code}`, ok ? 'good' : 'bad'); },
+        },
+        {
+          label: 'Copy link', kind: 'ghost', close: false,
+          onClick: async () => { const ok = await copyText(url); toast(ok ? 'Join link copied.' : 'Copy failed', ok ? 'good' : 'bad'); },
+        },
+        { label: 'Done', kind: 'primary' },
+      ],
+    });
   }
 
   function setBusy(v) { busy = v; updateButtons(); }
@@ -661,6 +694,14 @@ export function render(root, params = {}) {
     if (p.qIndex === view.qIndex) { paintQuestion(); paintStruggling(); paintStats(); }
   }));
 
+  // "Show answer" (from this dashboard or another one) - paint the answer panel now
+  cleanup.push(on('answer:shown', (p) => {
+    if (destroyed || view.ended || !p) return;
+    if (typeof p.qIndex === 'number' && p.qIndex !== view.qIndex) return;
+    view.shown = p;
+    paintQuestion();
+  }));
+
   cleanup.push(on('leaderboard', (p) => {
     if (destroyed || view.ended || !p) return;
     view.lb = p;
@@ -790,6 +831,12 @@ export function render(root, params = {}) {
       return;
     }
     view.joined = true;
+    // the server is the source of truth for the code this dashboard is driving
+    if (res.code && res.code !== view.code) {
+      view.code = String(res.code).toUpperCase();
+      codeEl.textContent = view.code;
+      save({ teacherCode: view.code });
+    }
     view.config = res.config || null;
     sessionUnitNames = view.config?.unitNames || null;
     paintLobbyMeta();
@@ -864,11 +911,15 @@ export function reportView(report) {
   const totals = report.totals || {};
   const players = report.players || [];
   const sort = { key: 'score', dir: -1 };
+  // old reports (pre fixed-marks) keep their original wording/columns
+  const marksMode = Number.isFinite(report.maxMarks);
+  const scoreLabel = marksMode ? 'Marks' : 'Score';
+  const fmtScore = (n) => (marksMode ? fmtMarks(n) : String(n ?? 0));
 
   const COLS = [
     { label: 'Student' },
     { label: 'Team' },
-    { label: 'Score', key: 'score' },
+    { label: scoreLabel, key: 'score' },
     { label: 'Correct', key: 'correct' },
     { label: 'Wrong' },
     { label: 'Accuracy', key: 'accuracy' },
@@ -911,7 +962,7 @@ export function reportView(report) {
     tbody.append(...list.map((p) => h('tr', { class: p.needsHelp ? 'needs' : null },
       h('td', null, h('b', null, p.nickname)),
       h('td', null, p.team || 'Solo'),
-      h('td', { class: 'num' }, p.score ?? 0),
+      h('td', { class: 'num' }, fmtScore(p.score)),
       h('td', { class: 'num' }, p.correct ?? 0),
       h('td', { class: 'num' }, p.wrong ?? 0),
       h('td', { class: 'num' }, pct(p.accuracy || 0)),
@@ -935,6 +986,12 @@ export function reportView(report) {
   const setChip = report.config?.setId
     ? h('span', { class: 'chip topic' }, `📦 ${report.config.setName || 'Question bank'}`)
     : null;
+  const marksChip = marksMode
+    ? h('span', { class: 'chip' }, `🎯 ${fmtMarks(report.maxMarks)} marks available`)
+    : null;
+  const negChip = marksMode && report.config?.negativeMarking
+    ? h('span', { class: 'chip bad' }, `−${fmtMarks(report.config.negativeAmount ?? 0.25)} per wrong answer`)
+    : null;
   // this run's own unit names first, then whatever the syllabus says
   const reportUnitName = (u) => (report.config?.unitNames && report.config.unitNames[u]) || unitName(u);
   // team standings: prefer what the server stored, recompute for old reports
@@ -955,7 +1012,9 @@ export function reportView(report) {
           h('span', { class: 'muted', style: { margin: 0 } },
             `${report.title || 'Python Adventure'} · session ${report.code}${report.endedAt ? ` · ${new Date(report.endedAt).toLocaleString()}` : ''}`),
           timerChip,
-          setChip)),
+          setChip,
+          marksChip,
+          negChip)),
       h('div', { class: 'row no-print' },
         h('button', { class: 'btn primary', type: 'button', onClick: () => downloadCsv(report, unitName) }, '⬇️ Download CSV'),
         h('button', { class: 'btn', type: 'button', onClick: () => window.print() }, '🖨 Print report'),
@@ -972,7 +1031,7 @@ export function reportView(report) {
       h('div', { class: 'spread' },
         h('h2', { style: { margin: 0 } }, '👩‍🎓 Students'),
         h('span', { class: 'chip' }, `${players.length} player${players.length === 1 ? '' : 's'}`)),
-      h('p', { class: 'muted small' }, 'Click Score, Correct or Accuracy to sort.'),
+      h('p', { class: 'muted small' }, `Click ${scoreLabel}, Correct or Accuracy to sort.`),
       h('div', { class: 'table-wrap', style: { marginTop: '8px' } }, h('table', null, thead, tbody))),
 
     teams.length
@@ -984,13 +1043,15 @@ export function reportView(report) {
         h('div', { class: 'table-wrap', style: { marginTop: '8px' } },
           h('table', null,
             h('thead', null, h('tr', null,
-              ['Rank', 'Team', 'Score', 'Avg per member', 'Accuracy', 'Members']
+              (marksMode
+                ? ['Rank', 'Team', 'Marks', 'Avg per member', 'Accuracy', 'Members']
+                : ['Rank', 'Team', 'Score', 'Avg per member', 'Accuracy', 'Members'])
                 .map((t, i) => h('th', { scope: 'col', class: i === 0 || i === 2 || i === 3 || i === 4 ? 'num' : '' }, t)))),
             h('tbody', null, teams.map((t) => h('tr', null,
               h('td', { class: 'num' }, `#${t.rank}`),
               h('td', null, h('b', null, `👥 ${t.name}`)),
-              h('td', { class: 'num' }, t.score ?? 0),
-              h('td', { class: 'num' }, t.avg ?? 0),
+              h('td', { class: 'num' }, fmtScore(t.score)),
+              h('td', { class: 'num' }, fmtScore(t.avg)),
               h('td', { class: 'num' }, pct(t.accuracy || 0)),
               h('td', null, (t.members || []).join(', ') || '—')))))))
       : null,

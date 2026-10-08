@@ -1,12 +1,18 @@
 // Practice mode engine: runs entirely on the client, same scoring rules as live.
-import { scoreAnswer } from '../../../shared/scoring.js';
+import { scoreAnswer, marksFor, round2, MARKS_DEFAULT, COSTS_DEFAULT, NEGATIVE_DEFAULT } from '../../../shared/scoring.js';
 import { evaluateBadges, badgeById, ENCOURAGEMENTS } from '../../../shared/badges.js';
 import { chooseRefreshers, timerFor, strengthMap, BAND_INFO, MAX_REFRESHERS_PER_LEVEL } from '../../../shared/quiz.js';
 import { request } from '../net.js';
 
 export class LocalEngine {
   constructor(config) {
-    this.config = config;
+    this.config = { ...config };
+    // scoring defaults so a bare engine (tests, quick runs) matches the server
+    this.config.marks = this.config.marks || MARKS_DEFAULT;
+    this.config.costs = this.config.costs || COSTS_DEFAULT;
+    this.config.negativeMarking = Boolean(this.config.negativeMarking);
+    this.config.negativeAmount = Number.isFinite(this.config.negativeAmount)
+      ? this.config.negativeAmount : NEGATIVE_DEFAULT;
     this.paced = config.timerOn === false; // practice question timer OFF
     this.listeners = new Map();
     this.questions = [];
@@ -97,13 +103,16 @@ export class LocalEngine {
       difficulty: q.difficulty,
       boss: q.boss,
       correct: judged.correct,
-      timeLeftFraction: this._timeLeftFraction(),
-      streak: this.player.streak,
       refresher: !!q.refresher,
       usedPowerups: this.usedPowerups,
       matchCorrect: judged.matchCorrect,
       matchTotal: judged.matchTotal,
       timedOut,
+      marks: this.config.marks,
+      costs: this.config.costs,
+      negativeMarking: this.config.negativeMarking,
+      negativeAmount: this.config.negativeAmount,
+      questionMarks: q.marks,
     });
 
     this._record(q, judged.correct, res.earned, timeMs, res.breakdown, judged.given);
@@ -136,13 +145,25 @@ export class LocalEngine {
     const q = this.current;
     if (!q || this.answeredThis || this.paced) return null;
     this.answeredThis = true;
-    const res = scoreAnswer({ difficulty: q.difficulty, boss: q.boss, correct: false, timedOut: true, streak: this.player.streak, timeLeftFraction: 0 });
+    const res = scoreAnswer({
+      difficulty: q.difficulty,
+      boss: q.boss,
+      correct: false,
+      timedOut: true,
+      usedPowerups: this.usedPowerups,
+      refresher: !!q.refresher,
+      marks: this.config.marks,
+      costs: this.config.costs,
+      negativeMarking: this.config.negativeMarking,
+      negativeAmount: this.config.negativeAmount,
+      questionMarks: q.marks,
+    });
     this._record(q, false, res.earned, this.duration, res.breakdown, null);
     return {
       qIndex: this.index,
       correct: false,
       timedOut: true,
-      earned: 0,
+      earned: res.earned,
       breakdown: res.breakdown,
       correctAnswer: q.answer ?? null,
       accepted: q.accepted ?? null,
@@ -180,11 +201,12 @@ export class LocalEngine {
   async powerup(kind) {
     const q = this.current;
     if (!q) return { error: 'Not now.' };
+    const costs = { ...COSTS_DEFAULT, ...(this.config.costs || {}) };
     if (kind === 'hint') {
       if (this.hintUsed) return { error: 'Hint already used.' };
       this.hintUsed = true;
       this.usedPowerups = [...(this.usedPowerups || []), 'hint'];
-      return { ok: true, cost: 15, hint: q.hint };
+      return { ok: true, cost: costs.hint, hint: q.hint };
     }
     if (kind === 'fifty') {
       if (!q.options || (q.answer || []).length !== 1) return { error: 'Not available here.' };
@@ -192,7 +214,7 @@ export class LocalEngine {
       const wrong = q.options.filter((o) => !q.answer.includes(o.id)).map((o) => o.id);
       this.removed = [...wrong].sort(() => Math.random() - 0.5).slice(0, 2);
       this.usedPowerups = [...(this.usedPowerups || []), 'fifty'];
-      return { ok: true, cost: 10, remove: this.removed };
+      return { ok: true, cost: costs.fifty, remove: this.removed };
     }
     if (kind === 'extraTime') {
       if (this.paced) return { error: 'There is no countdown on this question.' };
@@ -200,11 +222,11 @@ export class LocalEngine {
       this.roundStarted += 10000;
       this.usedPowerups = [...(this.usedPowerups || []), 'extraTime'];
       this.emit('time-extended', { extraMs: 10000, endsAt: this.roundStarted + this.duration });
-      return { ok: true, cost: 10, extraMs: 10000 };
+      return { ok: true, cost: costs.extraTime, extraMs: 10000 };
     }
     if (kind === 'skip') {
       this.usedPowerups = [...(this.usedPowerups || []), 'skip'];
-      return { ok: true, cost: 0, skipped: true };
+      return { ok: true, cost: costs.skip, skipped: true };
     }
     return { error: 'Unknown power-up.' };
   }
@@ -213,7 +235,8 @@ export class LocalEngine {
     const ev = this.lastEvent;
     if (!ev || !ev.miniPresented || ev.miniCorrect) return { ok: true, earned: 0 };
     ev.miniCorrect = !!correct;
-    const earned = correct ? 10 : 0;
+    // the mini pays the question's own marks (not a fixed bonus)
+    const earned = correct ? marksFor(ev.difficulty, ev.boss, this.config.marks) : 0;
     this.player.score += earned;
     if (correct) {
       const before = new Set(this.player.badges);
@@ -262,6 +285,12 @@ export class LocalEngine {
       .filter(([, s]) => s.band !== 'strong' && s.total >= 2)
       .map(([u]) => Number(u));
 
+    const maxMarks = round2(this.questions.reduce((s, q) => s + (
+      (Number.isFinite(Number(q.marks)) && Number(q.marks) >= 0
+        ? Number(q.marks)
+        : marksFor(q.difficulty, q.boss, this.config.marks)) * (q.refresher ? 0.8 : 1)
+    ), 0));
+
     return {
       mode: 'practice',
       code: null,
@@ -277,6 +306,7 @@ export class LocalEngine {
       unitStats,
       weakUnits,
       badges,
+      maxMarks,
       questions: p.events.map((e, i) => ({
         index: i, id: e.id, unit: e.unit, correct: e.correct, refresher: e.refresher, missRate: e.correct ? 0 : 1,
       })),

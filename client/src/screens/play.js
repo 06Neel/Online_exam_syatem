@@ -5,6 +5,7 @@ import { getActive, clearActive } from '../game/session.js';
 import { store, save } from '../state.js';
 import { go } from '../main.js';
 import { startHeartbeat, request } from '../net.js';
+import { fmtMarks, COSTS_DEFAULT } from '../../../shared/scoring.js';
 
 let FACTS = null;
 function loadFacts() {
@@ -70,6 +71,8 @@ export function render(root) {
   const feedbackSlot = h('div');
   const factSlot = h('div');
   const lbSlot = h('div');
+  // standings always sit at the top of the screen - never below the fold
+  const lbStrip = h('div', { class: 'lb-strip hide' });
 
   const header = h('div', { class: 'q-head' },
     h('div', { class: 'q-meta' }, chipsEl),
@@ -94,7 +97,7 @@ export function render(root) {
   );
 
   mount(root,
-    h('div', { class: 'screen' }, header, layout)
+    h('div', { class: 'screen' }, header, isLive ? lbStrip : null, layout)
   );
 
   if (isLive) stopHeartbeat = startHeartbeat();
@@ -139,7 +142,7 @@ export function render(root) {
     if (q.type) chipsEl.appendChild(h('span', { class: 'chip' }, typeLabel(q.type)));
 
     setProgress(payload.qIndex, payload.total);
-    scoreEl.textContent = `⭐ ${engine.player?.score ?? currentScore ?? 0}`;
+    scoreEl.textContent = `⭐ ${fmtMarks(engine.player?.score ?? currentScore ?? 0)}`;
 
     if (payload.review) {
       questionCard.appendChild(h('div', { class: 'explain', style: { marginTop: 0 } },
@@ -168,7 +171,9 @@ export function render(root) {
 
     const powerups = h('div', { class: 'powerups', style: { marginTop: '16px' } });
     const usedHere = new Set();
-    const mkPower = (kind, label, cost, icon) => {
+    const quizCosts = { ...COSTS_DEFAULT, ...(meta.costs || {}) };
+    const costText = (n) => (Number(n) > 0 ? `-${fmtMarks(n)}` : 'free');
+    const mkPower = (kind, label, icon) => {
       const btn = h('button', {
         class: 'powerup', type: 'button',
         onClick: async () => {
@@ -182,18 +187,18 @@ export function render(root) {
             if (kind === 'hint') showHint(res.hint);
             if (kind === 'fifty') view.setRemoved?.(res.remove || []);
             if (kind === 'extraTime') toast('Bonus time added ⏱️', 'gold');
-            if (res.cost) toast(`${label} used (-${res.cost} pts)`, '');
+            if (res.cost) toast(`${label} used (-${fmtMarks(res.cost)} marks)`, '');
           } catch (e) {
             toast(e.message, 'bad');
           } finally { busy = false; }
         },
-      }, `${icon} ${label}`, h('span', { class: 'cost' }, cost ? `-${cost}` : 'free'));
+      }, `${icon} ${label}`, h('span', { class: 'cost' }, costText(quizCosts[kind])));
       return btn;
     };
-    powerups.appendChild(mkPower('hint', 'Hint', 15, '💡'));
-    powerups.appendChild(mkPower('fifty', '50-50', 10, '✂️'));
-    if (!paced) powerups.appendChild(mkPower('extraTime', 'Extra time', 10, '⏱️'));
-    if (meta.mode === 'practice') powerups.appendChild(mkPower('skip', 'Skip once', 0, '⏭️'));
+    powerups.appendChild(mkPower('hint', 'Hint', '💡'));
+    powerups.appendChild(mkPower('fifty', '50-50', '✂️'));
+    if (!paced) powerups.appendChild(mkPower('extraTime', 'Extra time', '⏱️'));
+    if (meta.mode === 'practice') powerups.appendChild(mkPower('skip', 'Skip once', '⏭️'));
 
     const hintBox = h('div');
     let submitBtn = h('button', {
@@ -250,13 +255,14 @@ export function render(root) {
       meta.mode === 'practice'
         ? 'No leaderboard here - just you and the code.'
         : paced
-          ? 'No clock - take your time. Points reward understanding, not speed.'
-          : 'Points: speed adds a little, understanding adds the most.'));
+          ? 'No clock - take your time. Each question is worth its own marks.'
+          : 'Each question is worth its own marks: easy 1, medium 1.5, hard 2.'));
 
     function showHint(text) {
+      const cost = Number(quizCosts.hint) > 0 ? ` (-${fmtMarks(quizCosts.hint)})` : ' (free)';
       hintBox.textContent = '';
       hintBox.appendChild(h('div', { class: 'explain', style: { marginTop: '12px' } },
-        h('h2', null, '💡 Hint (-15)'), h('p', { style: { margin: 0 } }, text)));
+        h('h2', null, `💡 Hint${cost}`), h('p', { style: { margin: 0 } }, text)));
     }
 
     // timer (self-paced questions have no countdown at all)
@@ -355,7 +361,7 @@ export function render(root) {
   function showFeedback(result, activeView, q) {
     clearInterval(timerHandle);
     currentScore = result.score ?? (engine.player?.score ?? currentScore);
-    scoreEl.textContent = `⭐ ${currentScore}`;
+    scoreEl.textContent = `⭐ ${fmtMarks(currentScore)}`;
     if (result.streak >= 2) {
       streakEl.classList.remove('hide');
       streakEl.textContent = `🔥 ${result.streak} in a row`;
@@ -364,13 +370,13 @@ export function render(root) {
     activeView?.markResult?.(result.yourAnswer, result.correctAnswer);
 
     const good = result.correct;
-    if (good) { confetti(result.earned >= 100 ? 60 : 34); }
+    if (good) { confetti(result.earned >= 2 ? 60 : 34); }
     else activeView?.element?.classList.add('shake');
 
     const breakdown = h('div', { class: 'breakdown' },
       (result.breakdown || []).map((b) =>
         h('span', { class: `b ${b.value < 0 ? 'neg' : b.value > 0 ? 'pos' : ''}` },
-          `${b.value >= 0 ? '+' : ''}${b.value} ${b.label}`)));
+          `${b.value > 0 ? '+' : ''}${fmtMarks(b.value)} ${b.label}`)));
 
     const badges = (result.badges || []).length
       ? h('div', { class: 'badges', style: { marginTop: '12px' } },
@@ -410,7 +416,7 @@ export function render(root) {
             : given === mini.answer;
           const out = await engine.mini(correct);
           miniView.lock?.();
-          toast(correct ? `Nice comeback! +${out.earned ?? 10}` : 'Almost - read the why below.', correct ? 'good' : 'bad');
+          toast(correct ? `Nice comeback! +${fmtMarks(out.earned ?? 0)} marks` : 'Almost - read the why below.', correct ? 'good' : 'bad');
           miniSlot.appendChild(h('div', { class: 'explain' },
             h('h2', null, correct ? '✅ Right' : 'Here is the why'),
             h('p', { style: { margin: 0 } }, mini.explanation)));
@@ -436,7 +442,8 @@ export function render(root) {
     feedbackSlot.appendChild(h('div', { class: `feedback pop ${good ? 'good' : 'bad'}`, role: 'status' },
       h('p', { class: 'headline' },
         good ? '✅ Nailed it!' : (result.timedOut ? '⏰ Out of time' : '🙂 Not this one'),
-        h('span', { class: 'points', style: { marginLeft: 'auto' } }, `+${result.earned}`)),
+        h('span', { class: 'points', style: { marginLeft: 'auto' } },
+          `${result.earned > 0 ? '+' : ''}${fmtMarks(result.earned)}`)),
       good
         ? h('p', { class: 'muted', style: { margin: 0 } }, streakLine(result.streak))
         : h('p', { style: { margin: 0 } }, result.encouragement || 'Have a look at the why below.'),
@@ -472,6 +479,25 @@ export function render(root) {
   let lbView = 'teams'; // team mode: 'teams' or 'players' (the Individuals view)
   const updateLeaderboard = (lb) => {
     if (!lbSlot) return;
+    // the server broadcasts the board to the whole room, so it cannot say who "me" is -
+    // tag my own row (and my team) right here from the id I joined with
+    const myId = engine.playerId || store.playerId;
+    let myEntry = null;
+    if (lb && Array.isArray(lb.entries)) {
+      lb = {
+        ...lb,
+        entries: lb.entries.map((e) => {
+          const me = !!e.me || (!!myId && e.id === myId);
+          if (me) myEntry = { ...e, me: true };
+          return { ...e, me };
+        }),
+      };
+      if (myEntry?.team && Array.isArray(lb.teams)) {
+        lb = { ...lb, teams: lb.teams.map((t) => ({ ...t, me: t.name === myEntry.team })) };
+      }
+    }
+    paintLbStrip(lb, myEntry);
+    if (!lbSlot) return;
     if (lb && lb.visible === false) {
       lbSlot.textContent = '';
       lbSlot.appendChild(h('div', { class: 'card tight' }, h('p', { class: 'muted small', style: { margin: 0 } }, 'The teacher has hidden the leaderboard for now.')));
@@ -489,7 +515,7 @@ export function render(root) {
           `${e.correct} right`,
           e.streak >= 2 ? `🔥${e.streak}` : null,
         ].filter(Boolean).join(' · '))),
-      h('span', { class: 'pts' }, e.score),
+      h('span', { class: 'pts' }, fmtMarks(e.score)),
       h('span', { class: 'delta' }, deltaFor(e)));
 
     const teamRow = (t) => {
@@ -498,9 +524,9 @@ export function render(root) {
         h('span', { class: 'rank' }, rankIcon(t.rank)),
         h('span', { class: 'who' },
           h('b', null, `${t.name} ${n > 1 ? '👥' : ''}`),
-          h('span', null, `${(t.members || []).join(', ') || 'nobody yet'} · avg ${t.avg ?? 0}`),
+          h('span', null, `${(t.members || []).join(', ') || 'nobody yet'} · avg ${fmtMarks(t.avg ?? 0)}`),
           h('span', null, `${t.correct} right · ${Math.round((t.accuracy || 0) * 100)}%`)),
-        h('span', { class: 'pts' }, t.score),
+        h('span', { class: 'pts' }, fmtMarks(t.score)),
         h('span', null));
     };
 
@@ -549,6 +575,47 @@ export function render(root) {
 
   const deltaFor = (e) => (e.rank === 1 ? '👑' : e.badges ? '🏅'.repeat(Math.min(2, e.badges)) : '');
   const rankIcon = (r) => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `#${r}`);
+
+  /** Slim standings bar pinned to the top: my rank, my team, who is leading. */
+  function paintLbStrip(lb, myEntry) {
+    if (!lbStrip) return;
+    lbStrip.textContent = '';
+    const entries = (lb && lb.entries) || [];
+    if (!lb || lb.visible === false || !entries.length) {
+      lbStrip.classList.add('hide');
+      return;
+    }
+    const top = entries[0];
+    const myTeam = myEntry && myEntry.team
+      ? (lb.teams || []).find((t) => t.name === myEntry.team)
+      : null;
+    const leader = lb.mode === 'team' && (lb.teams || []).length
+      ? { nickname: `${lb.teams[0].name} 👥`, score: lb.teams[0].score, id: '__team__' }
+      : top;
+    const chips = [];
+    if (myEntry) {
+      chips.push(h('span', { class: 'chip good' },
+        `${rankIcon(myEntry.rank)} You · ${fmtMarks(myEntry.score)} marks`));
+    } else {
+      chips.push(h('span', { class: 'chip' }, '🏆 on the board'));
+    }
+    if (myTeam) {
+      chips.push(h('span', { class: 'chip topic' },
+        `👥 ${myTeam.name} ${rankIcon(myTeam.rank)} · ${fmtMarks(myTeam.score)}`));
+    }
+    const leaderIsMine = (lb.mode === 'team' && myTeam && lb.teams[0]?.name === myTeam.name)
+      || (!!myEntry && top?.id === myEntry.id);
+    if (leader && !leaderIsMine) {
+      chips.push(h('span', { class: 'chip' },
+        `👑 ${leader.nickname} · ${fmtMarks(leader.score ?? 0)}`));
+    }
+    lbStrip.append(
+      h('span', { class: 'lb-strip-label muted small' }, '🏆 Live standings'),
+      ...chips,
+      h('span', { class: 'muted small', style: { marginLeft: 'auto' } },
+        lb.hidden > 0 ? `+${lb.hidden} learning 🌱` : 'updates live'));
+    lbStrip.classList.remove('hide');
+  }
 
   function handleQuestion(p) {
     renderQuestionCard(p);
@@ -601,7 +668,21 @@ export function render(root) {
           : '🐢 Question timer OFF - go at your own pace', 'gold', 2800);
       }
     }));
-    cleanup.push(engine.on('answer-shown', (p) => toast(`Answer: ${p.answer?.join?.(', ') || p.answer || ''}`, 'gold', 4000)));
+    // the teacher pressed "Show answer": show readable text (never bare option ids)
+    cleanup.push(engine.on('answer-shown', (p) => {
+      if (!p || !questionInfo) return;
+      if (typeof p.qIndex === 'number' && p.qIndex !== questionInfo.qIndex) return; // another question
+      const q = questionInfo.question;
+      const pairsText = (p.pairs || []).map((x) => `${x.left} → ${x.right}`).join(' · ');
+      const text = (p.type === 'match' && pairsText ? pairsText
+        : answerText({ ...(q || {}), options: q?.options || p.options || null }, p.answer, p.accepted))
+        || pairsText;
+      if (!text) return;
+      modalish('📝 The answer is on the board',
+        h('div', null,
+          h('p', null, 'Correct answer: ', h('span', { class: 'chip good' }, text)),
+          p.explanation ? h('p', { class: 'muted' }, p.explanation) : null));
+    }));
     cleanup.push(engine.on('class-mistake', (p) => {
       const most = p.option;
       modalish('Anonymous class mistake',
@@ -632,7 +713,8 @@ export function render(root) {
       feedbackSlot.appendChild(h('div', { class: 'feedback good pop', role: 'status' },
         h('p', { class: 'headline' },
           '🏁 You finished!',
-          h('span', { class: 'points', style: { marginLeft: 'auto' } }, `⭐ ${p.score ?? engine.player?.score ?? currentScore ?? 0}`)),
+          h('span', { class: 'points', style: { marginLeft: 'auto' } },
+            `⭐ ${fmtMarks(p.score ?? engine.player?.score ?? currentScore ?? 0)}`)),
         h('p', { class: 'muted', style: { margin: 0 } },
           `${p.correct ?? engine.player?.correct ?? 0} right · ${p.wrong ?? engine.player?.wrong ?? 0} missed`),
         badgeRow,

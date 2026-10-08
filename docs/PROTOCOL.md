@@ -83,7 +83,8 @@ summaries - never from merged lists.
   shared list; `GET /api/units/list` and `GET /api/units` cover the shared/default layer only,
   so bank units never leak in and shared names never leak out. Wrapper uploads
   (`{file:{title, settings, units, questions}}`) also store quiz defaults
-  (`sanitizeSettings`: points/timers/reveal/timerOn/commonSeconds/quizSeconds/count/difficulty).
+  (`sanitizeSettings`: marks/costs/negativeMarking/negativeAmount/timers/reveal/timerOn/
+  commonSeconds/quizSeconds/count/difficulty - the legacy `points` key is still accepted).
   `loadSetQuestions(owner, file)` re-reads the file fresh + applies the same override layers;
   a session snapshots its bank's questions (`setBank`) at create, so a running quiz survives
   bank deletion or server restart. Bank unit ids: file units keep their original numeric ids;
@@ -109,7 +110,7 @@ summaries - never from merged lists.
 
 | Event (client -> server) | Payload | Ack reply |
 |---|---|---|
-| `host:create` | `{title, units:[1..7], count, difficulty, teamMode, hideBottom, revealSeconds, mode:'live'\|'practice', timers:{easy,medium,hard,bossExtra}, points:{easy,medium,hard,boss}, shuffleOptions, allowHints, allowPowerups, lateJoin, opensAt, classId, className, section, questionIds?, setId?, useFacts, revisionRounds, leaderboardToStudents, timerOn, commonSeconds?, quizSeconds?, allowBack?, allowSkip?, token}` | `{ok, code, token, config}` (server stamps `ownerId/ownerName`; `config` carries the binding `setId/setName/setCount/unitNames` - `unitNames: null` for `default` = syllabus names) |
+| `host:create` | `{title, units:[1..7], count, difficulty, teamMode, hideBottom, revealSeconds, mode:'live'\|'practice', timers:{easy,medium,hard,bossExtra}, marks:{easy,medium,hard,boss?}, costs:{hint,fifty,extraTime,skip}?, negativeMarking?, negativeAmount?, shuffleOptions, allowHints, allowPowerups, lateJoin, opensAt, classId, className, section, questionIds?, setId?, useFacts, revisionRounds, leaderboardToStudents, timerOn, commonSeconds?, quizSeconds?, allowBack?, allowSkip?, token}` | `{ok, code, token, config}` (server stamps `ownerId/ownerName`; `config` carries the binding `setId/setName/setCount/unitNames` - `unitNames: null` for `default` = syllabus names - plus the resolved `marks`/`costs`/`negativeMarking`/`negativeAmount` the scoreAnswer calls use) |
 | `host:join` | `{code, token}` | `{ok, code, config, roster, stats, state}` - `state = hostState()`: `{status, phase, qIndex, total, endsAt, selfPaced, timerOn, question?, meta?}` so a refreshed/restarted teacher lands on the live question; the set binding in `config` never changes while the session lives. Joins register a **controller**: the socket id is tracked server-side and every change broadcasts `host:count` to the teacher room (see below), so several devices can watch/control one quiz |
 | `host:start` | - | `{ok, total}` |
 | `host:control` | `{action, seconds?, on?, expect?:{phase, qIndex}}` | `{ok, action, report?}` (gates: scheduled `opensAt` blocks start). **Staleness**: when `expect` is sent and the server has moved on (auto-reveal already fired, someone else advanced), the ack comes back `{ok:true, stale:true, action, state, roster, stats}` instead of acting - the client applies the fresh state and shows "already moved on". `pause`/`resume` are directional and idempotent: pausing a paused quiz answers `{ok, unchanged:true}` (never flips back) |
@@ -136,12 +137,13 @@ land back in the same session with score intact. Students on the lobby/play scre
 persistent "Waiting for your teacher..." banner while paused, and a friendly `session-lost`
 error when the quiz has really expired (they are sent back to `#/join`).
 
-**Question timer**: `timerOn:true` (default) = one shared countdown per question
-(`timerFor(q, timers, commonSeconds)`: per-question `timeLimit` (1-300s) > `commonSeconds`
-> per-difficulty defaults + boss extra). `timerOn:false` = self-paced: every student drives
+**Question timer**: `timerOn:false` is the **default** - self-paced: every student drives
 their own `player:advance`/`player:goto`, no countdown (`duration:null`), no shared reveal,
-no speed bonus, ranked score -> fewer hints -> earlier `finishedAt`. While self-paced,
-`next`/`skip`/`extend`/`show-answer`/`reveal-mistake` answer with an error. Flipping the
+ranked marks -> fewer hints -> earlier `finishedAt`. `timerOn:true` = one shared countdown
+per question (`timerFor(q, timers, commonSeconds)`: per-question `timeLimit` (1-300s) >
+`commonSeconds` > per-difficulty defaults + boss extra). While self-paced,
+`next`/`skip`/`extend`/`reveal-mistake` answer with an error, but `show-answer` is **allowed**
+(it broadcasts `answer:shown` so the class can read the answer together). Flipping the
 switch mid-run: OFF bites from the *next* question (the running one keeps its clock -
 `currentPaced` tracks what is on screen); ON re-syncs the class on the furthest question
 (`resumeLockstep`, `effective:'now'`). Paused quizzes reject the flip.
@@ -174,7 +176,7 @@ HTTP call to `/api/bank` (GET list, POST save, DELETE /:id). Persist it in `stor
 | `question:reveal` | `{qIndex,correctAnswer,accepted,pairs,stats,distribution,explanation,analogy,mini,fact:{kind,text},endsAt}` (shared questions only - never in self-paced mode) |
 | `question:sync` | `{endsAt, extended?}` |
 | `class:mistake` | `{count, option:{id,text}, options, answer, explanation}` |
-| `answer:shown` | `{answer, accepted, explanation}` |
+| `answer:shown` | `{qIndex, type, answer, accepted, explanation, options?:[{id,text}], pairs?:[{left,right}]}` - rich enough to read aloud: `options` carry their text (never bare ids) and `pairs` the match columns. Students ignore a reveal whose `qIndex` is not on screen |
 | `control` | `{action:'pause'\|'resume'\|'timer-changed'\|'show-leaderboard'\|'hide-leaderboard', remaining?, timerOn?, effective?, ...}` (`timer-changed` carries `{timerOn, effective:'now'\|'next question'}`) |
 | `phase` | `{phase:'question'\|'reveal'\|'ended', qIndex, endsAt, selfPaced?}` |
 | `player:finished` | `{score, correct, wrong, answered, total, badges:[{id,name,icon,desc}], playerId}` - a self-paced student reached the end |
@@ -187,6 +189,7 @@ HTTP call to `/api/bank` (GET list, POST save, DELETE /:id). Persist it in `stor
 ```js
 {
   code, title, startedAt, endedAt, config,   // config carries timerOn/commonSeconds/quizSeconds/allowBack/allowSkip + setId/setName/setCount/unitNames (null = syllabus names)
+  marks: {max, negativeMarking, negativeAmount}, maxMarks,   // fixed-marks scoring: what the quiz was worth (0.8x for refreshers)
   players: [{ id, nickname, team, rank, score, correct, wrong, skipped,
               accuracy, totalTimeMs, bestStreak, badges:[id], unitStats:{[unit]:{correct,total,accuracy}},
               weakUnits:[], needsHelp:bool, finished:bool, finishedAt:ms|null,
@@ -200,6 +203,16 @@ HTTP call to `/api/bank` (GET list, POST save, DELETE /:id). Persist it in `stor
   needsHelp: [nickname], totals: {players, answers, correct, accuracy}
 }
 ```
+
+**Scoring** (`scoreAnswer()` in `shared/scoring.js`, fixed-marks edition): a question is worth
+its difficulty's marks (`marks:{easy:1, medium:1.5, hard:2}`, boss = hard, overridable per
+quiz and per question via `q.marks` 0-1000). No speed bonus, no streak bonus. Power-up costs
+(`costs:{hint:0.5, fifty:1, extraTime:0, skip:0}`) are deducted whenever the power-up was
+used, correct or not. Negative marking (off by default, `negativeAmount:0.25`) applies to
+wrong answers only - never to timeouts or skips. Totals round to 2 decimals, may go
+negative, never NaN. Ranking: marks -> more correct -> fewer power-ups -> earlier finish.
+Reports written before this change keep their old adaptive shape: the screens/CSV label them
+`Score`, marks-era runs say `Marks` + `Marks available`.
 
 **Team standings** (`rankTeams(players)`, `shared/scoring.js`): players are grouped by their
 trimmed `team` name (players without one are *not* folded into a fake team - they stay solo).

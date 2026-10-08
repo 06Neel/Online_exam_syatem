@@ -94,7 +94,7 @@ export function modal({ title, body, actions = [] }) {
     actions.length ? h('div', { class: 'row', style: { marginTop: '16px', justifyContent: 'flex-end' } },
       actions.map((a) => h('button', {
         class: `btn ${a.kind || 'ghost'}`,
-        onClick: () => { a.onClick?.(); if (a.close !== false) close(); },
+        onClick: (ev) => { a.onClick?.(ev); if (a.close !== false) close(); },
       }, a.label))
     ) : null
   );
@@ -131,6 +131,17 @@ export function fmtClock(seconds) {
 
 export function pct(n) {
   return `${Math.round(n * 100)}%`;
+}
+
+// A small "i" hint icon: hover or keyboard-focus shows the tooltip text.
+export function hintIcon(text) {
+  if (!text) return null;
+  return h('span', {
+    class: 'hint-i',
+    'data-tip': text,
+    'aria-label': `Hint: ${text}`,
+    tabindex: '0',
+  }, 'i');
 }
 
 // A "Light mode" row that flips the theme instantly, no reload needed.

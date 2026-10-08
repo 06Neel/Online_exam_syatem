@@ -236,6 +236,57 @@ test('results for a solo report never shows a team card', async () => {
   save({ lastReport: null });
 });
 
+// Old quizzes were scored with points; fixed-marks runs say "Marks". Both must survive.
+test('old reports keep their Score wording, marks runs say Marks', async () => {
+  const { csvOf } = await import('../../client/src/reporting.js');
+  const { reportView } = await import('../../client/src/screens/teacherLive.js');
+  const { save } = await import('../../client/src/state.js');
+
+  const legacy = {
+    code: 'OLD1', meId: 's1',
+    config: { teamMode: false, timerOn: true },
+    players: [{
+      id: 's1', nickname: 'Old Timer', score: 340, correct: 3, wrong: 1, accuracy: 0.75,
+      badges: [], totalTimeMs: 62000, bestStreak: 2, unitStats: {},
+    }],
+    totals: { players: 1, answers: 4, accuracy: 0.75 },
+    questions: [{ id: 'u1-q01', unit: 1, prompt: 'A legacy question', correct: 3, wrong: 1, missRate: 0.25, avgTimeMs: 4200 }],
+    unitStats: {}, struggling: [], needsHelp: [], weakUnits: [],
+  };
+
+  save({ lastReport: legacy });
+  const oldResults = await render('#/results', import('../../client/src/screens/results.js'));
+  const oldText = oldResults.textContent;
+  assert.match(oldText, /Score/, 'a legacy result still says Score');
+  assert.doesNotMatch(oldText, /\bMarks\b/, `a legacy result never says Marks | ${oldText.slice(0, 300)}`);
+
+  const oldTeacher = reportView(legacy).textContent;
+  assert.match(oldTeacher, /Score/, 'the legacy teacher report says Score');
+  assert.doesNotMatch(oldTeacher, /\bMarks\b/, 'the legacy teacher report never says Marks');
+
+  const oldCsv = csvOf(legacy);
+  assert.match(oldCsv, /"Student","Team","Score",/, 'the legacy CSV keeps its Score column');
+  assert.doesNotMatch(oldCsv, /Marks/, 'the legacy CSV never says Marks');
+
+  // a fixed-marks run flips every surface to Marks (with the max on offer)
+  const modern = {
+    ...legacy,
+    maxMarks: 4.5,
+    marks: { max: 4.5, negativeMarking: true, negativeAmount: 0.25 },
+    players: [{ ...legacy.players[0], score: 3.5 }],
+    questions: [{ ...legacy.questions[0], marks: 1.5 }],
+  };
+  save({ lastReport: modern });
+  const newResults = await render('#/results', import('../../client/src/screens/results.js'));
+  assert.match(newResults.textContent, /Marks/, 'a marks run says Marks');
+  assert.match(newResults.textContent, /of 4\.5/, 'the max marks are shown');
+  save({ lastReport: null });
+
+  const newCsv = csvOf(modern);
+  assert.match(newCsv, /"Marks available","4\.5"/, 'the CSV shows how many marks were on offer');
+  assert.match(newCsv, /"Student","Team","Marks",/, 'the marks CSV uses the Marks column');
+});
+
 test('editor is gated behind a teacher sign-in', async () => {
   const container = await render('#/teacher/edit', import('../../client/src/screens/editor.js'));
   assert.match(container.textContent, /sign in/i, 'editor explains how to unlock');

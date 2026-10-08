@@ -89,11 +89,11 @@ export function render(root) {
     startBtn.disabled = true;
     startBtn.textContent = 'Loading questions…';
     try {
-      save({ practiceConfig: { units: cfg.units, count: cfg.count, difficulty: cfg.difficulty, timerOn: cfg.timerOn } });
-      const engine = new LocalEngine({ units: cfg.units, count: cfg.count, difficulty: cfg.difficulty, timerOn: cfg.timerOn });
+      save({ practiceConfig: { units: cfg.units, count: cfg.count, difficulty: cfg.difficulty, timerOn: cfg.timerOn, marks: cfg.marks, costs: cfg.costs, negativeMarking: cfg.negativeMarking, negativeAmount: cfg.negativeAmount } });
+      const engine = new LocalEngine({ units: cfg.units, count: cfg.count, difficulty: cfg.difficulty, timerOn: cfg.timerOn, marks: cfg.marks, costs: cfg.costs, negativeMarking: cfg.negativeMarking, negativeAmount: cfg.negativeAmount });
       await engine.init();
       clearActive();
-      setActiveGame(engine, { mode: 'practice' });
+      setActiveGame(engine, { mode: 'practice', marks: cfg.marks, costs: cfg.costs, negativeMarking: cfg.negativeMarking, negativeAmount: cfg.negativeAmount });
       go('#/play');
       setTimeout(() => engine.start(), 40);
     } catch (e) {

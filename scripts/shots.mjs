@@ -87,15 +87,23 @@ try {
   await signIn(lt);
   await lt.goto(`${BASE}/#/teacher`, { waitUntil: 'networkidle' });
   await shot(lt, '15-light-teacher-home');
+  await lt.getByRole('button', { name: /\+ Create a quiz/ }).click();
+  await lt.waitForSelector('.wizard-step', { timeout: 8000 });
+  await shot(lt, '25-wizard-steps');
   await lt.context().close();
 
   // ---- a live session in progress ----
   await t.goto(`${BASE}/#/teacher`, { waitUntil: 'networkidle' });
-  await t.getByRole('button', { name: /Create & open lobby/i }).click();
+  await t.getByRole('button', { name: /Quick start/i }).click();
+  await t.getByRole('button', { name: /Create and open lobby/i }).click();
   await t.waitForURL(/#\/teacher\/live/);
   await t.waitForSelector('.controls .mono');
   const code = (await t.locator('.controls .mono').first().textContent()).trim();
   await shot(t, '6-teacher-lobby');
+  await t.locator('[aria-label="Show the join code and QR code"]').click();
+  await t.waitForSelector('.modal', { timeout: 6000 });
+  await shot(t, '24-share-dialog');
+  await t.getByRole('button', { name: /^Done$/ }).click();
 
   const s = await (await browser.newContext({ viewport: { width: 430, height: 900 }, colorScheme: 'dark' })).newPage();
   await s.goto(`${BASE}/#/join`, { waitUntil: 'networkidle' });

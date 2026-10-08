@@ -3,7 +3,8 @@
 import { h, mount, modal, toast, pct } from '../ui.js';
 import { go } from '../main.js';
 import { request } from '../net.js';
-import { authToken, signOut } from '../auth.js';
+import { authToken } from '../auth.js';
+import { topbar } from '../topbar.js';
 import { downloadCsv } from '../reporting.js';
 
 export const title = 'Reports';
@@ -12,6 +13,7 @@ export function render(root) {
   let rows = [];
   let busy = false;
   const errorBox = h('p', { role: 'alert', style: { color: 'var(--bad)', display: 'none' } });
+  const listDivider = h('div', { class: 'divider' });
   const listBox = h('div', null, h('div', { class: 'empty' }, 'Loading reports…'));
 
   function showError(msg) {
@@ -21,6 +23,7 @@ export function render(root) {
 
   function paint() {
     listBox.textContent = '';
+    listDivider.style.display = rows.length ? '' : 'none';
     if (!rows.length) {
       listBox.append(h('div', { class: 'empty' },
         h('div', null, 'No saved reports yet.'),
@@ -112,23 +115,17 @@ export function render(root) {
   }
 
   mount(root,
-    h('div', { class: 'screen narrow' },
-      h('div', { class: 'row', style: { marginBottom: '14px', justifyContent: 'space-between' } },
-        h('div', { class: 'row' },
-          h('button', { class: 'btn small ghost', onClick: () => go('#/teacher') }, '← Dashboard'),
-          h('span', { class: 'chip topic' }, '📚 Reports')),
-        h('button', {
-          class: 'btn small ghost', type: 'button',
-          onClick: async () => { await signOut(); go('#/teacher/login'); },
-        }, 'Sign out')),
-
-      h('div', { class: 'card' },
+    h('div', { class: 'screen narrow pro' },
+      topbar('reports'),
+      h('div', { class: 'page-head' },
         h('h1', null, 'Reports'),
         h('p', { class: 'muted' },
           'Every finished session, kept on this account. Open one to print it or re-export the CSV - '
-          + 'deleting a report never touches your questions.'),
+          + 'deleting a report never touches your questions.')),
+
+      h('div', { class: 'card' },
         errorBox,
-        h('div', { class: 'divider' }),
+        listDivider,
         listBox)));
 
   load();

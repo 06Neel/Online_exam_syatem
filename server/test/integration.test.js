@@ -8,6 +8,7 @@ import { existsSync, readdirSync, rmSync } from 'node:fs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { UNITS } = await import('../../shared/units.js');
+const { COSTS_DEFAULT, MARKS_DEFAULT } = await import('../../shared/scoring.js');
 const PORT = 3199;
 const URL = `http://localhost:${PORT}`;
 // everything this run writes lives here - the real server/data is never touched
@@ -219,7 +220,7 @@ test('host creates a session, students join, the quiz runs end to end', async ()
   assert.ok(Array.isArray(report.weakUnits));
 });
 
-test('power-ups: hint costs points and 50-50 removes options', async () => {
+test('power-ups: hint costs marks and 50-50 removes options', async () => {
   const host = connect(URL, { transports: ['websocket'], forceNew: true });
   sockets.push(host);
   await new Promise((r) => host.on('connect', r));
@@ -236,7 +237,7 @@ test('power-ups: hint costs points and 50-50 removes options', async () => {
 
   const hint = await emitAck(p, 'player:powerup', { kind: 'hint' });
   assert.ok(hint.ok, hint.error);
-  assert.equal(hint.cost, 15);
+  assert.equal(hint.cost, COSTS_DEFAULT.hint);
   assert.ok(hint.hint && hint.hint.length > 5, 'a real hint is returned, not the answer');
 
   if (q.question.type === 'mcq' || q.question.type === 'code-output' || q.question.type === 'spot-error') {
@@ -678,7 +679,7 @@ test('classes: teachers keep their own classes and sections', async () => {
 });
 
 // ---------- per-quiz settings ----------
-test('quiz settings: timing, points, gates, class tags and schedule', async () => {
+test('quiz settings: timing, marks, gates, class tags and schedule', async () => {
   const host = connect(URL, { transports: ['websocket'], forceNew: true });
   sockets.push(host);
   await new Promise((r) => host.on('connect', r));
@@ -687,7 +688,7 @@ test('quiz settings: timing, points, gates, class tags and schedule', async () =
     token: teacherToken, units: [1], count: 4, difficulty: 'easy', revealSeconds: 4,
     mode: 'practice',
     timers: { easy: 61, medium: 62, hard: 63, bossExtra: 7 },
-    points: { easy: 111, medium: 112, hard: 113, boss: 114 },
+    marks: { easy: 11, medium: 12, hard: 13, boss: 14 },
     shuffleOptions: false,
     allowHints: false,
     allowPowerups: false,
@@ -699,8 +700,9 @@ test('quiz settings: timing, points, gates, class tags and schedule', async () =
   assert.equal(cfg.mode, 'practice');
   assert.equal(cfg.timers.easy, 61);
   assert.equal(cfg.timers.bossExtra, 7);
-  assert.equal(cfg.points.easy, 111);
-  assert.equal(cfg.points.boss, 114);
+  assert.equal(cfg.marks.easy, 11);
+  assert.equal(cfg.marks.boss, 14);
+  assert.equal(cfg.costs.hint, COSTS_DEFAULT.hint, 'power-up costs ride along in the config');
   assert.equal(cfg.shuffleOptions, false);
   assert.equal(cfg.allowHints, false);
   assert.equal(cfg.allowPowerups, false);
@@ -736,7 +738,7 @@ test('quiz settings: timing, points, gates, class tags and schedule', async () =
   const late = await emitAck(p2, 'player:join', { code: created.code, nickname: 'Late' });
   assert.match(late.error || '', /late joins/);
 
-  // an answer is scored with the custom point table when it lands right
+  // an answer is scored with the custom mark table when it lands right
   const answer = q.question.type === 'fill-blank'
     ? q.question.accepted[0]
     : q.question.type === 'match'
@@ -745,7 +747,7 @@ test('quiz settings: timing, points, gates, class tags and schedule', async () =
   const out = await emitAck(p1, 'player:answer', { qIndex: q.qIndex, answer });
   assert.ok(out.ok, out.error);
   if (out.result?.correct) {
-    assert.equal(out.result.breakdown[0].value, 111, 'easy base = 111 for this quiz');
+    assert.equal(out.result.breakdown[0].value, 11, 'easy marks = 11 for this quiz');
   }
   await emitAck(host, 'host:end');
 

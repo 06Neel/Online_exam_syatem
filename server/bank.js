@@ -324,6 +324,11 @@ export function sanitizeSettings(raw) {
     const n = Number(v);
     return Number.isFinite(n) && n >= min && n <= max ? Math.round(n) : null;
   };
+  const dec = (v, min, max) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < min || n > max) return null;
+    return Math.round(n * 100) / 100;
+  };
   const out = {};
   const pts = raw.points;
   if (pts && typeof pts === 'object') {
@@ -333,6 +338,29 @@ export function sanitizeSettings(raw) {
     };
     if (Object.values(p).every((v) => v !== null)) out.points = p;
   }
+  // fixed-marks scoring: per-difficulty marks + power-up costs (decimal-safe)
+  const mk = raw.marks;
+  if (mk && typeof mk === 'object') {
+    const m = {
+      easy: dec(mk.easy, 0, 1000), medium: dec(mk.medium, 0, 1000),
+      hard: dec(mk.hard, 0, 1000), boss: mk.boss === undefined || mk.boss === null ? null : dec(mk.boss, 0, 1000),
+    };
+    if (m.easy !== null && m.medium !== null && m.hard !== null) {
+      if (m.boss === null) delete m.boss;
+      out.marks = m;
+    }
+  }
+  const cs = raw.costs;
+  if (cs && typeof cs === 'object') {
+    const c = {
+      hint: dec(cs.hint, 0, 1000), fifty: dec(cs.fifty, 0, 1000),
+      extraTime: dec(cs.extraTime, 0, 1000), skip: dec(cs.skip, 0, 1000),
+    };
+    if (Object.values(c).every((v) => v !== null)) out.costs = c;
+  }
+  if (raw.negativeMarking !== undefined && raw.negativeMarking !== null) out.negativeMarking = !!raw.negativeMarking;
+  const neg = dec(raw.negativeAmount, 0, 1000);
+  if (neg !== null) out.negativeAmount = neg;
   const tm = raw.timers;
   if (tm && typeof tm === 'object') {
     const t = {

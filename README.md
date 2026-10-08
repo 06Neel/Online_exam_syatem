@@ -62,7 +62,7 @@ Other commands:
 questions/bank/*.json   84 questions (12 per syllabus unit) + facts.json (fun facts)
 questions/validate.mjs  bank linter (also used by npm run lint)
 shared/                 game rules used by BOTH client and server
-  scoring.js            points, speed cap, streaks, power-up costs, ranking
+  scoring.js            fixed marks, power-up costs, negative marking, ranking
   badges.js             badge definitions + incremental evaluation
   quiz.js               level/question building, option shuffling, revision picker
   rng.js                seeded randomness (fair, reproducible question order)
@@ -221,25 +221,35 @@ Run `npm run dev` on the teacher laptop and let students join via `http://<teach
 questions from your own weak areas, unlimited retries, `Fix my weak spots` at the end.
 
 **Live (classroom)** — join with a code + fun nickname (real name optional), one question at a
-time with a relaxed timer, instant feedback, streaks, badges, team mode, hidden bottom of the
+time (shared countdown when you turn the timer on, otherwise everyone at their own pace),
+instant feedback, streaks, badges, team mode, hidden bottom of the
 leaderboard (on by default), and an anonymous *"mistake of the class"* reveal for discussion.
 
 ---
 
-## Scoring (accuracy always beats speed)
+## Scoring (fixed marks per question)
 
-| Event | Points |
+Every question is worth a fixed number of **marks** - the teacher sets the defaults and can
+override the value on any single question. Two students who answer correctly get exactly the
+same marks: no speed bonus, no streak bonus.
+
+| Event | Marks |
 |---|---|
-| Correct | `base × (1 + 0.4 × time left)` — base 80 easy / 100 medium / 130 hard / **150 boss** |
-| Streak | +10 per consecutive correct, capped at **+30** |
-| Wrong / timed out | **0** (never negative) |
-| Try-again mini correct | **+10** consolation |
+| Correct | the question's marks - **easy 1 · medium 1.5 · hard 2** (boss = hard) |
+| Match-the-following | all pairs = full marks, otherwise `marks × pairs / total` |
+| Wrong | **0**, or **−0.25** when negative marking is switched on (off by default) |
+| Timed out / skipped | **0** - never negative, never NaN |
+| Try-again mini correct | the mini question's difficulty marks |
 | Refresher (🔄) | same rules, ×0.8 |
-| Hint / 50-50 / Extra time | −15 / −10 / −10 |
-| Match-the-following | +20% per correct pair, full base when all pairs match |
+| Hint / 50-50 / Extra time / Skip | **−0.5 / −1 / −0 / −0** by default |
 
-So the biggest possible speed swing is 40% of the base, while being correct versus wrong swings
-100+ points: **understanding always wins.**
+Power-up costs are charged whenever the power-up was used - correct or not. Totals round to
+2 decimals and may go negative when negative marking is on. The score screen shows the
+breakdown chips that add up to the total. Ranking: **more marks → more correct → fewer
+power-ups → earlier finish** (ties never flip between renders).
+
+Per-quiz keys: `marks:{easy,medium,hard,boss}`, `costs:{hint,fifty,extraTime,skip}`,
+`negativeMarking`, `negativeAmount`; per-question: `q.marks` (0–1000).
 
 ---
 
@@ -265,14 +275,21 @@ up) while *options* are shuffled per player and stats are keyed by option id.
 
 ## Teacher features
 
+- **Four tabs in one top bar**: Home (start a quiz), Question Banks, Reports, Classes - the
+  session code, a **Share** dialog (big code + scannable **QR** + copy code / copy link) and
+  the live roster are one click away from every screen; the lobby shows the join QR too
+- **⚡ Quick start** (sensible defaults → straight into the lobby) or the **4-step wizard**:
+  Format → Questions → Scoring → Review, with *Skip to review* jumping to the last step
 - Create by topic / difficulty / count, or reopen a running session
-- Per-quiz settings: live or practice, timers, point values, option shuffle, hints/power-ups,
-  late joins, scheduled start time, class + section tag
+- Per-quiz settings: live or practice, question timer (**off by default**), marks per
+  difficulty *and* per question, power-up costs, negative marking, option shuffle,
+  hints/power-ups, late joins, scheduled start time, class + section tag
 - Classes & sections, and renameable syllabus units (🗂️ Manage units)
-- Live roster with **attempting / idle / disconnected**, per-student question number, score, rank
+- Live roster with **attempting / idle / disconnected**, per-student question number, marks, rank
 - Per-question correct-vs-wrong and answer-option distribution
 - Most-missed questions + class topic weakness heatmap
-- Controls: start, pause, resume, next/skip, +10s, show/hide leaderboard, show answer,
+- Controls: start, pause, resume, next/skip, +10s, show/hide leaderboard, **show answer**
+  (both in the shared-clock run and a self-paced one - students get it in readable text),
   reveal the anonymous class mistake, end
 - Question editor with full validation, bank-wide check, JSON export, **needs-review** flags
   from real class results
@@ -280,8 +297,10 @@ up) while *options* are shuffled per player and stats are keyed by option id.
   kept inside your own bank
 - Post-session report: student table, topic bars, time taken, **needs-extra-help** list,
   extended CSV (session info, class, units, needs-review column) and print view
-- **Reports history** (`📚 Reports`): every finished session stays readable, printable and
-  exportable, with a confirm dialog before deletion
+- **Reports history** (`Reports` tab): every finished session stays readable, printable and
+  exportable, with a confirm dialog before deletion. Saved reports from the old adaptive
+  scoring era still open with their original **Score** wording - marks-era runs say **Marks**
+  (and `Marks available`) instead
 
 ---
 

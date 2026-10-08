@@ -250,7 +250,7 @@ try {
   await teacher.waitForURL(/#\/teacher$/, { timeout: 10000 });
 
   await teacher.goto(`${BASE}/#/teacher`, { waitUntil: 'networkidle' });
-  await audit(teacher, 'teacher-home', { primary: /Create & open lobby/ });
+  await audit(teacher, 'teacher-home', { primary: /Create a quiz/ });
 
   // ---------- student: static screens ----------
   const sCtx = await browser.newContext({ viewport: { width: 430, height: 900 }, colorScheme: 'dark' });
@@ -271,7 +271,8 @@ try {
   // ---------- live session ----------
   log('\n  live session');
   await teacher.goto(`${BASE}/#/teacher`, { waitUntil: 'networkidle' });
-  await teacher.getByRole('button', { name: /Create & open lobby/i }).click();
+  await teacher.getByRole('button', { name: /Quick start/i }).click();
+  await teacher.getByRole('button', { name: /Create and open lobby/i }).click();
   await teacher.waitForURL(/#\/teacher\/live/);
   await teacher.waitForSelector('.controls .mono');
   const code = (await teacher.locator('.controls .mono').first().textContent()).trim();
@@ -348,7 +349,7 @@ try {
   await applyTheme(teacher, 'dark');
   await teacher.goto(`${BASE}/#/teacher/reports`, { waitUntil: 'networkidle' });
   await teacher.waitForSelector('.card', { timeout: 8000 });
-  await audit(teacher, 'reports-history', { primary: /Dashboard/ });
+  await audit(teacher, 'reports-history', { primary: /Home|Open/ });
 
   // the print page needs a saved report: seed one straight onto disk
   const reportDir = join(DATA_DIR, 'teachers', SEED_ID, 'reports');

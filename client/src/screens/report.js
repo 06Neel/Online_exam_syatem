@@ -3,7 +3,8 @@
 import { h, mount, modal, toast } from '../ui.js';
 import { go } from '../main.js';
 import { request } from '../net.js';
-import { authToken, signOut } from '../auth.js';
+import { authToken } from '../auth.js';
+import { topbar } from '../topbar.js';
 import { reportView, setUnitNames } from './teacherLive.js';
 import { downloadCsv } from '../reporting.js';
 
@@ -12,19 +13,18 @@ export const title = 'Session report';
 export function render(root) {
   const code = (location.hash.match(/^#\/teacher\/report\/([A-Za-z0-9]{4})$/) || [])[1];
 
-  const bar = h('div', { class: 'row no-print', style: { marginBottom: '14px', justifyContent: 'space-between' } },
-    h('div', { class: 'row' },
-      h('button', { class: 'btn small ghost', onClick: () => go('#/teacher/reports') }, '← History'),
-      h('span', { class: 'chip topic' }, '📊 Session report')),
-    h('div', { class: 'row' },
-      code ? h('button', { class: 'btn small ghost', type: 'button', onClick: () => confirmDelete(code) }, '🗑 Delete') : null,
-      h('button', {
-        class: 'btn small ghost', type: 'button',
-        onClick: async () => { await signOut(); go('#/teacher/login'); },
-      }, 'Sign out')));
+  const bar = h('div', { class: 'page-head no-print' },
+    h('div', { class: 'spread' },
+      h('div', null,
+        h('h2', { style: { margin: '0 0 .3em' } }, 'Session report'),
+        h('p', { class: 'muted small' }, 'Scores, breakdown and question analysis - printable with Ctrl+P.')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn small ghost', onClick: () => go('#/teacher/reports') }, '← History'),
+        h('button', { class: 'btn small', type: 'button', onClick: () => window.print() }, '🖨 Print report'),
+        code ? h('button', { class: 'btn small ghost', type: 'button', onClick: () => confirmDelete(code) }, '🗑 Delete') : null)));
 
   const body = h('div', { class: 'card' }, h('p', { class: 'muted' }, 'Loading report…'));
-  mount(root, h('div', { class: 'screen narrow print-page' }, bar, body));
+  mount(root, h('div', { class: 'screen narrow print-page pro' }, topbar('reports'), bar, body));
 
   if (!code) {
     body.replaceWith(notFound('That link has no session code in it.'));

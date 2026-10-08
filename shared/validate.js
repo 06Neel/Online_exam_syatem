@@ -51,6 +51,10 @@ export function questionErrors(q, seenIds = new Set(), units = UNITS, opts = {})
   if (!QUESTION_TYPES.includes(q.type)) add(`unknown type ${q.type}`);
   if (!DIFFICULTIES.includes(q.difficulty)) add(`unknown difficulty ${q.difficulty}`);
   if (typeof q.boss !== 'boolean') add('boss must be boolean');
+  if (q.marks !== undefined && q.marks !== null && q.marks !== '') {
+    const mk = Number(q.marks);
+    if (!Number.isFinite(mk) || mk < 0 || mk > 1000) add('marks must be a number from 0 to 1000');
+  }
   if (!q.prompt || q.prompt.length < 5) add('prompt too short');
   if (q.timeLimit !== undefined && q.timeLimit !== null && q.timeLimit !== '') {
     const t = Number(q.timeLimit);

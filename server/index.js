@@ -10,6 +10,7 @@ import { SessionStore } from './sessions.js';
 import { MAX_AGE_MS } from './snapshots.js';
 import { evaluateBadges, badgeById } from '../shared/badges.js';
 import { shuffleOptions, buildQuiz } from '../shared/quiz.js';
+import { marksFor } from '../shared/scoring.js';
 import { validateQuestions } from '../shared/validate.js';
 import { fileUnitList, DEFAULT_SET_NAME } from '../shared/units.js';
 import { getUnits, saveUnits, validateUnits } from './units.js';
@@ -659,12 +660,9 @@ io.on('connection', (socket) => {
         break;
       }
       case 'show-answer': {
-        if (session.currentPaced && session.status === 'running') {
-          out = { error: 'Students review answers at their own pace - the timer is off.', action };
-          break;
-        }
-        const q = session.currentQuestion();
-        session.emitAll('answer:shown', { answer: q?.answer || null, accepted: q?.accepted || null, explanation: q?.explanation });
+        // works with the question clock on and off - the class follows the teacher
+        const res = session.revealAnswer();
+        out = res.error ? { error: res.error, action } : { ok: true, action, ...res };
         break;
       }
       case 'end': out = { ok: true, report: session.end() }; break;
@@ -732,6 +730,11 @@ io.on('connection', (socket) => {
       allowBack: !!s.config.allowBack,
       allowSkip: s.config.allowSkip !== false,
       quizEndsAt: s.overallEndsAt ?? null,
+      // fixed-marks scoring contract (labels + power-up costs on the card)
+      marks: s.config.marks,
+      costs: s.config.costs,
+      negativeMarking: s.config.negativeMarking,
+      negativeAmount: s.config.negativeAmount,
     });
 
     s.emitAll('player:joined', { nickname: player.nickname, count: s.players.size, rebind });
@@ -811,7 +814,8 @@ io.on('connection', (socket) => {
     const ok = !!payload.correct;
     ev.miniPresented = true;
     ev.miniCorrect = ok;
-    const earned = ok ? 10 : 0;
+    // the mini pays the question's own marks (not a fixed bonus)
+    const earned = ok ? marksFor(ev.difficulty, ev.boss, session.config.marks) : 0;
     player.score += earned;
     if (ok) {
       const before = new Set(player.badges);

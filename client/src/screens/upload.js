@@ -2,6 +2,7 @@
 // per-question numbered errors, duplicate detection, then import.
 // The exact same validator runs here, in the server and in npm run validate.
 import { h, mount, toast } from '../ui.js';
+import { save } from '../state.js';
 import { go } from '../main.js';
 import { request, emitAck } from '../net.js';
 import { authToken, signOut } from '../auth.js';
@@ -390,7 +391,9 @@ export function render(root) {
             count: Math.min(40, Math.max(4, n)),
           });
           if (res?.error || !res?.ok) throw new Error(res?.error || 'The server did not create the quiz.');
-          go('#/teacher/live');
+          // remember which session this dashboard belongs to (and carry it in the URL)
+          if (res.code) save({ teacherCode: res.code });
+          go(`#/teacher/live${res.code ? `?code=${res.code}` : ''}`);
         } catch (e) {
           toast(e.message || 'Could not create the quiz.', 'bad');
           busy = false;

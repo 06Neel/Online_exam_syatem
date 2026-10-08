@@ -2,7 +2,7 @@
 // dashboard, the print page and the reports history.
 import { h, toast, pct, fmtClock } from './ui.js';
 import { badgeById } from '../../shared/badges.js';
-import { rankTeams } from '../../shared/scoring.js';
+import { rankTeams, fmtMarks } from '../../shared/scoring.js';
 import { unitName as baseUnitName } from '../../shared/units.js';
 
 const clock = (ms) => fmtClock((ms || 0) / 1000);
@@ -25,6 +25,8 @@ export function csvOf(report, unitLabel = baseUnitName) {
   const names = cfg.unitNames;
   const label = (u) => (names && names[u]) || unitLabel(Number(u));
   const out = [];
+  // old reports (pre fixed-marks) keep their original wording/columns
+  const marksMode = Number.isFinite(report.maxMarks);
 
   out.push(line(['Python Adventure report']));
   out.push(line(['Session', report.code]));
@@ -41,10 +43,13 @@ export function csvOf(report, unitLabel = baseUnitName) {
       'Whole quiz limit', cfg.quizSeconds ? `${Math.round(cfg.quizSeconds / 60)} min` : 'none',
     ]));
   }
+  if (marksMode) out.push(line(['Marks available', fmtMarks(report.maxMarks)]));
   out.push(line(['Players', totals.players ?? (report.players || []).length, 'Class accuracy', pct(totals.accuracy || 0)]));
   out.push('');
 
-  out.push(line(['Student', 'Team', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (mm:ss)', 'Best streak', 'Badges', 'Needs help', 'Finished']));
+  out.push(line(marksMode
+    ? ['Student', 'Team', 'Marks', 'Correct', 'Wrong', 'Accuracy', 'Time (mm:ss)', 'Best streak', 'Badges', 'Needs help', 'Finished']
+    : ['Student', 'Team', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (mm:ss)', 'Best streak', 'Badges', 'Needs help', 'Finished']));
   for (const p of report.players || []) {
     out.push(line([
       p.nickname, p.team || 'Solo', p.score ?? 0, p.correct ?? 0, p.wrong ?? 0,
@@ -61,7 +66,9 @@ export function csvOf(report, unitLabel = baseUnitName) {
     const teams = rankTeams(report.players || []);
     if (teams.length) {
       out.push(line(['Team standings']));
-      out.push(line(['Rank', 'Team', 'Score', 'Average per member', 'Members', 'Accuracy']));
+      out.push(line(marksMode
+        ? ['Rank', 'Team', 'Marks', 'Average per member', 'Members', 'Accuracy']
+        : ['Rank', 'Team', 'Score', 'Average per member', 'Members', 'Accuracy']));
       for (const t of teams) {
         out.push(line([t.rank, t.name, t.score, t.avg, t.members.join(' | '), pct(t.accuracy)]));
       }
@@ -75,13 +82,18 @@ export function csvOf(report, unitLabel = baseUnitName) {
   }
   out.push('');
 
-  out.push(line(['Question id', 'Unit', 'Prompt', 'Correct', 'Wrong', 'Miss rate', 'Avg seconds', 'Needs review']));
+  out.push(line(marksMode
+    ? ['Question id', 'Unit', 'Prompt', 'Marks', 'Correct', 'Wrong', 'Miss rate', 'Avg seconds', 'Needs review']
+    : ['Question id', 'Unit', 'Prompt', 'Correct', 'Wrong', 'Miss rate', 'Avg seconds', 'Needs review']));
   for (const q of report.questions || []) {
-    out.push(line([
-      q.id, label(q.unit), q.prompt, q.correct ?? 0, q.wrong ?? 0,
+    const row = [
+      q.id, label(q.unit), q.prompt,
+      ...(marksMode ? [fmtMarks(q.marks ?? 0)] : []),
+      q.correct ?? 0, q.wrong ?? 0,
       pct(q.missRate || 0), Math.round((q.avgTimeMs || 0) / 100) / 10,
       (q.missRate || 0) >= 0.5 ? 'yes' : 'no',
-    ]));
+    ];
+    out.push(line(row));
   }
 
   // self-paced runs: seconds each student spent per question (blank = not attempted)

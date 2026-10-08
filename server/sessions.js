@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto';
 import { loadBank, publicQuestion, getFacts, loadSetQuestions, setDisplayName } from './bank.js';
 import { saveReport } from './reports.js';
 import { buildQuiz, shuffleOptions, timerFor, MAX_REFRESHERS_PER_LEVEL } from '../shared/quiz.js';
-import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, rankTeams } from '../shared/scoring.js';
+import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, rankTeams, MARKS_DEFAULT, COSTS_DEFAULT, NEGATIVE_DEFAULT, marksFor, fmtMarks, REFRESHER_MULT, round2 } from '../shared/scoring.js';
 import { evaluateBadges, badgeById, ENCOURAGEMENTS } from '../shared/badges.js';
 import { saveSnapshot, dropSnapshot, loadSnapshots, MAX_AGE_MS } from './snapshots.js';
 import { unitName as baseUnitName, DEFAULT_SET_NAME } from '../shared/units.js';
@@ -46,6 +46,9 @@ export class Session {
 
     const mode = config.mode === 'practice' ? 'practice' : 'live';
     const num = (v, lo, hi, dflt) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : dflt);
+    const dec = (v, lo, hi, dflt) => (Number.isFinite(Number(v))
+      ? Math.round(Math.min(hi, Math.max(lo, Number(v))) * 100) / 100
+      : dflt);
     const optNum = (v, lo, hi) => (Number.isFinite(Number(v)) && Number(v) > 0
       ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : null);
     const inTimers = config.timers && typeof config.timers === 'object' ? config.timers : {};
@@ -67,6 +70,23 @@ export class Session {
       points.hard = num(inPoints.hard, 1, 1000, 130);
       points.boss = num(inPoints.boss, 1, 1000, 150);
     }
+    // ---- fixed-marks scoring (the wizard's step-3 values) ----
+    const inMarks = config.marks && typeof config.marks === 'object' ? config.marks : {};
+    const inCosts = config.costs && typeof config.costs === 'object' ? config.costs : {};
+    const marks = {
+      easy: dec(inMarks.easy, 0, 1000, MARKS_DEFAULT.easy),
+      medium: dec(inMarks.medium, 0, 1000, MARKS_DEFAULT.medium),
+      hard: dec(inMarks.hard, 0, 1000, MARKS_DEFAULT.hard),
+    };
+    marks.boss = dec(inMarks.boss, 0, 1000, marks.hard);
+    const costs = {
+      hint: dec(inCosts.hint, 0, 1000, COSTS_DEFAULT.hint),
+      fifty: dec(inCosts.fifty, 0, 1000, COSTS_DEFAULT.fifty),
+      extraTime: dec(inCosts.extraTime, 0, 1000, COSTS_DEFAULT.extraTime),
+      skip: dec(inCosts.skip, 0, 1000, COSTS_DEFAULT.skip),
+    };
+    const negativeMarking = !!config.negativeMarking;
+    const negativeAmount = dec(config.negativeAmount, 0, 1000, NEGATIVE_DEFAULT);
 
     // ---- question set binding: the quiz runs from exactly one set ----
     let setId = typeof config.setId === 'string' ? config.setId.trim().slice(0, 80) : '';
@@ -104,6 +124,10 @@ export class Session {
       revealSeconds: Math.min(30, Math.max(3, Number(config.revealSeconds) || REVEAL_SECONDS)),
       timers,
       points,
+      marks,
+      costs,
+      negativeMarking,
+      negativeAmount,
       shuffleOptions: config.shuffleOptions !== false,
       allowHints: config.allowHints !== false,
       allowPowerups: config.allowPowerups !== false,
@@ -149,6 +173,7 @@ export class Session {
     this.startedAt = null;
     this.endedAt = null;
     this.lastFacts = { bugs: null, didYouKnow: null };
+    this.shownFor = null;         // `${qIndex}:${questionId}` once the teacher showed the answer
     this.revisionFor = new Set(); // units that already got a revision round
     this.setBank = null;          // Map id -> question once a set-bound quiz loads
     this.controllers = new Set(); // teacher sockets currently driving this session
@@ -452,6 +477,7 @@ export class Session {
       this.questionLog.push({
         index: idx, id: q.id, unit: q.unit, type: q.type,
         difficulty: q.difficulty, boss: q.boss, refresher: !!e.refresher, prompt: q.prompt,
+        marks: Number.isFinite(Number(q.marks)) && Number(q.marks) >= 0 ? Number(q.marks) : null,
       });
     }
   }
@@ -855,7 +881,18 @@ export class Session {
     // anyone still open gets a timed-out result
     for (const p of this.players.values()) {
       if (!p.hasAnswered) {
-        const res = scoreAnswer({ difficulty: q.difficulty, boss: q.boss, correct: false, timedOut: true, streak: p.streak, timeLeftFraction: 0, points: this.config.points });
+        const res = scoreAnswer({
+          difficulty: q.difficulty,
+          boss: q.boss,
+          correct: false,
+          timedOut: true,
+          usedPowerups: p.powerupsUsed.filter((x) => x.qIndex === this.qIndex).map((x) => x.kind),
+          marks: this.config.marks,
+          costs: this.config.costs,
+          negativeMarking: this.config.negativeMarking,
+          negativeAmount: this.config.negativeAmount,
+          questionMarks: q.marks,
+        });
         this.recordAnswer(p, q, { correct: false, timedOut: true, earned: res.earned, timeMs: 0, breakdown: res.breakdown }, res);
         this.sendResult(p, q, { correct: false, timedOut: true, earned: res.earned, breakdown: res.breakdown });
         st.wrong++;
@@ -1023,7 +1060,6 @@ export class Session {
     const now = Date.now();
     let timedOut = false;
     let timeMs = 0;
-    let timeLeftFraction = 0;
     if (paced) {
       // self-paced: no countdown - just record how long they took
       timeMs = Math.max(0, now - (player.questionStartedAt || now));
@@ -1033,7 +1069,6 @@ export class Session {
       const duration = this.timer?.duration || 1;
       const remaining = this.timer ? Math.max(0, this.timer.endsAt - now) : 0;
       timeMs = Math.round(Math.max(0, Math.min(duration, duration - remaining)));
-      timeLeftFraction = timedOut ? 0 : Math.max(0, Math.min(1, remaining / duration));
     }
 
     const judged = judge(q, payload.answer, player);
@@ -1042,14 +1077,16 @@ export class Session {
       difficulty: q.difficulty,
       boss: q.boss,
       correct: judged.correct,
-      timeLeftFraction,
-      streak: player.streak,
       refresher: !!e?.refresher,
       usedPowerups: player.powerupsUsed.filter((p) => p.qIndex === idx).map((p) => p.kind),
       matchCorrect: judged.matchCorrect,
       matchTotal: judged.matchTotal,
       timedOut,
-      points: this.config.points,
+      marks: this.config.marks,
+      costs: this.config.costs,
+      negativeMarking: this.config.negativeMarking,
+      negativeAmount: this.config.negativeAmount,
+      questionMarks: q.marks,
     });
 
     const record = { correct: judged.correct, timedOut, earned: res.earned, timeMs, breakdown: res.breakdown, answer: judged.given };
@@ -1132,7 +1169,7 @@ export class Session {
       player.hintUsed = true;
       player.powerupsUsed.push({ qIndex: idx, kind });
       this.persist();
-      return { ok: true, cost: 15, hint: q.hint };
+      return { ok: true, cost: this.config.costs.hint, hint: q.hint };
     }
     if (kind === 'fifty') {
       if (!q.options || q.answer?.length !== 1) return { error: 'Not available here.' };
@@ -1141,21 +1178,21 @@ export class Session {
       player.removed = shuffled;
       player.powerupsUsed.push({ qIndex: idx, kind });
       this.persist();
-      return { ok: true, cost: 10, remove: shuffled };
+      return { ok: true, cost: this.config.costs.fifty, remove: shuffled };
     }
     if (kind === 'extraTime') {
       if (paced) return { error: 'There is no countdown on this question.' };
       player.personalGrace += EXTEND_SECONDS * 1000;
       player.powerupsUsed.push({ qIndex: idx, kind });
       this.persist();
-      return { ok: true, cost: 10, extraMs: EXTEND_SECONDS * 1000 };
+      return { ok: true, cost: this.config.costs.extraTime, extraMs: EXTEND_SECONDS * 1000 };
     }
     if (kind === 'skip') {
       if (!player.powerupsUsed.some((p) => p.qIndex === idx && p.kind === 'skip')) {
         player.powerupsUsed.push({ qIndex: idx, kind: 'skip' });
       }
       this.persist();
-      return { ok: true, cost: 0, skipped: true };
+      return { ok: true, cost: this.config.costs.skip, skipped: true };
     }
     return { error: 'Unknown power-up.' };
   }
@@ -1346,6 +1383,37 @@ export class Session {
     this.io.to(this.teacherRoom).emit('roster', this.rosterPayload());
   }
 
+  /** The current question is showing its answer: timer ran out or the teacher revealed it. */
+  answerRevealed() {
+    const q = this.currentQuestion();
+    if (!q) return false;
+    return this.phase === 'reveal' || this.shownFor === `${this.qIndex}:${q.id}`;
+  }
+
+  /**
+   * Teacher pressed "Show answer" - works with the clock on AND off (self-paced).
+   * Everyone gets a readable payload (option ids come with their text) so students
+   * can follow along; students on another question ignore it.
+   */
+  revealAnswer() {
+    const q = this.currentQuestion();
+    if (!q) return { error: 'There is no question on screen yet.' };
+    this.shownFor = `${this.qIndex}:${q.id}`;
+    const payload = {
+      qIndex: this.qIndex,
+      selfPaced: !!this.currentPaced,
+      type: q.type || null,
+      options: (q.options || []).map((o) => ({ id: o.id, text: o.text })),
+      pairs: (q.pairs || []).map((p) => ({ left: p.left, right: p.right })),
+      answer: q.answer || null,
+      accepted: q.accepted || null,
+      explanation: q.explanation || null,
+    };
+    this.emitAll('answer:shown', payload);
+    this.broadcastQuestionStats();
+    return { shown: true, ...payload };
+  }
+
   questionStatsPayload() {
     const st = this.stats[this.qIndex] || { counts: {}, correct: 0, wrong: 0, times: [], answered: 0 };
     const q = this.currentQuestion();
@@ -1369,7 +1437,7 @@ export class Session {
       answer: q?.answer || null,
       missed: missed.slice(0, 5),
       unitStats,
-      revealing: this.phase === 'reveal',
+      revealing: this.answerRevealed(),
       selfPaced: this.currentPaced,
       // self-paced progress across the class
       answeredTotal: [...this.players.values()].reduce((s, p) => s + Object.keys(p.answered).length, 0),
@@ -1430,14 +1498,21 @@ export class Session {
     const questions = this.questionLog.map((entry) => {
       const st = this.stats[entry.index] || { correct: 0, wrong: 0, times: [] };
       const total = st.correct + st.wrong;
+      const marks = round2(
+        (Number.isFinite(entry.marks) && entry.marks >= 0
+          ? entry.marks
+          : marksFor(entry.difficulty, entry.boss, this.config.marks))
+        * (entry.refresher ? REFRESHER_MULT : 1));
       return {
         ...entry,
+        marks,
         correct: st.correct,
         wrong: st.wrong,
         missRate: total ? st.wrong / total : 0,
         avgTimeMs: st.times.length ? Math.round(st.times.reduce((a, b) => a + b, 0) / st.times.length) : 0,
       };
     });
+    const maxMarks = round2(questions.reduce((s, q) => s + q.marks, 0));
 
     const unitStats = this.classUnitStats();
     const weakUnits = Object.entries(unitStats)
@@ -1455,6 +1530,9 @@ export class Session {
       // team standings for team-mode runs (fair tie-breaks, shared logic)
       teams: this.config.teamMode ? rankTeams(this.ranked()) : undefined,
       questions,
+      // fixed-marks scoring: what this quiz was worth (0.8x for refreshers)
+      marks: { max: maxMarks, negativeMarking: this.config.negativeMarking, negativeAmount: this.config.negativeAmount },
+      maxMarks,
       unitStats,
       weakUnits,
       struggling: questions.filter((q) => q.missRate >= 0.5).map((q) => ({ id: q.id, prompt: q.prompt, missRate: q.missRate })),

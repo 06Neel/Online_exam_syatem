@@ -2,9 +2,9 @@
 // Renames and additions apply to this teacher's quiz builder, editor and uploads.
 // Also keeps this teacher's classes + sections (tagged onto quizzes for reports).
 import { h, mount, toast, modal } from '../ui.js';
-import { go } from '../main.js';
 import { request } from '../net.js';
-import { authToken, signOut } from '../auth.js';
+import { authToken } from '../auth.js';
+import { topbar } from '../topbar.js';
 import { UNITS as BASE_UNITS } from '../../../shared/units.js';
 
 export const title = 'Manage units';
@@ -286,18 +286,16 @@ export function render(root) {
   loadClasses();
 
   mount(root,
-    h('div', { class: 'screen narrow' },
-      h('div', { class: 'row', style: { marginBottom: '14px', justifyContent: 'space-between' } },
-        h('div', { class: 'row' },
-          h('button', { class: 'btn small ghost', onClick: () => go('#/teacher') }, '← Dashboard'),
-          h('span', { class: 'chip topic' }, '🗂️ Manage units')),
-        h('button', {
-          class: 'btn small ghost', type: 'button',
-          onClick: async () => { await signOut(); go('#/teacher/login'); },
-        }, 'Sign out')),
+    h('div', { class: 'screen narrow pro' },
+      topbar('classes'),
+      h('div', { class: 'page-head' },
+        h('h1', null, 'Units & classes'),
+        h('p', { class: 'muted' },
+          'Rename the syllabus units your quizzes draw from, add your own, '
+          + 'and tag quizzes with a class and section so reports group correctly.')),
 
       h('div', { class: 'card' },
-        h('h1', null, 'Units'),
+        h('h2', null, 'Units'),
         h('p', { class: 'muted' },
           'The syllabus units for your quizzes. Rename the built-in seven to match your class, '
           + 'or add your own - they show up in the quiz builder, the editor and uploads right away.'),
@@ -316,9 +314,6 @@ export function render(root) {
           + 'Sections are optional - leave them blank for a single group.'),
         classError,
         h('div', { class: 'divider' }),
-        classListBox),
-
-      h('div', { class: 'row', style: { marginTop: '16px', justifyContent: 'center' } },
-        h('button', { class: 'btn ghost', type: 'button', onClick: () => go('#/teacher') }, '← Back to the dashboard')))
+        classListBox))
   );
 }

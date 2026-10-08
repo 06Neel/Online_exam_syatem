@@ -5,10 +5,10 @@ import { h, mount, toast, modal } from '../ui.js';
 import { request } from '../net.js';
 import { store, save as saveState } from '../state.js';
 import { go } from '../main.js';
-import { signOut } from '../auth.js';
 import { validateQuestions } from '../../../shared/validate.js';
 import { UNITS as BASE_UNITS, QUESTION_TYPES, DIFFICULTIES } from '../../../shared/units.js';
 import { bankLine, renameBankModal, confirmRemoveBank, duplicateBank } from '../bankui.js';
+import { topbar } from '../topbar.js';
 
 export const title = 'Question bank';
 
@@ -218,11 +218,7 @@ function shell() {
     h('span', { class: 'grow' }),
     h('button', { class: 'btn small', type: 'button', onClick: checkWholeBank }, '✔ Validate whole bank'),
     h('button', { class: 'btn small', type: 'button', onClick: downloadBank }, '⬇ Export bank JSON'),
-    h('button', { class: 'btn small ghost', type: 'button', onClick: () => loadBank(selectedId) }, '↻ Refresh'),
-    h('button', {
-      class: 'btn small ghost', type: 'button', 'aria-label': 'Sign out of the teacher account',
-      onClick: async () => { await signOut(); go('#/teacher/login'); },
-    }, '⎋ Sign out'));
+    h('button', { class: 'btn small ghost', type: 'button', onClick: () => loadBank(selectedId) }, '↻ Refresh'));
 
   // ---- pick ONE bank: everything below (questions, units, tags, saves) ----
   // comes from the selected bank alone.
@@ -296,11 +292,9 @@ function shell() {
 
   renderChips();
 
-  return h('div', { class: 'screen wide' },
+  return h('div', { class: 'screen wide pro' },
+    topbar('banks'),
     h('h1', { class: 'sr-only' }, 'Question bank editor'),
-    h('div', { class: 'row', style: { marginBottom: '14px' } },
-      h('button', { class: 'btn small ghost', type: 'button', onClick: () => go('#/') }, '← Home'),
-      h('button', { class: 'btn small ghost', type: 'button', onClick: () => go('#/teacher') }, '← Dashboard')),
     toolbar,
     bankBar,
     bankLineEl,

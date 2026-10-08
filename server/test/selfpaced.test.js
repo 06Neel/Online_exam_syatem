@@ -165,13 +165,27 @@ test('self-paced run: personal questions, own navigation, teacher watches progre
   }
   assert.equal((await startedRoster).selfPaced, true);
 
-  // shared-clock teacher controls are refused while the timer is off
+  // the shared-clock controls are refused while the timer is off (reveal excepted)
   const nextTry = await emitAck(host, 'host:control', { action: 'next' });
   assert.match(nextTry.error, /own pace/, 'teacher cannot drive the class');
   const extendTry = await emitAck(host, 'host:control', { action: 'extend', seconds: 10 });
   assert.match(extendTry.error, /countdown/, 'nothing to extend');
+  // "Show answer" works with the timer off too - everyone gets a readable reveal
+  const shownToA = waitEvent(a, 'answer:shown');
   const showTry = await emitAck(host, 'host:control', { action: 'show-answer' });
-  assert.match(showTry.error, /own pace/, 'students review on their own clock');
+  assert.ok(showTry.ok, showTry.error);
+  assert.equal(showTry.qIndex, 0, 'the reveal names the question it belongs to');
+  // whatever the question type, the reveal carries something a human can read
+  const hasOptions = Array.isArray(showTry.options) && showTry.options.length > 0;
+  const hasPairs = Array.isArray(showTry.pairs) && showTry.pairs.length > 0;
+  const hasAccepted = Array.isArray(showTry.accepted) && showTry.accepted.length > 0;
+  assert.ok(hasOptions || hasPairs || hasAccepted, 'the reveal carries a readable answer');
+  if (hasOptions) {
+    assert.ok(showTry.options.every((o) => typeof o.text === 'string' && o.text.length > 0),
+      'students never see a bare option id');
+  }
+  const shownPayload = await shownToA;
+  assert.equal(shownPayload.qIndex, 0, 'students receive the same reveal');
 
   // Alpha walks the whole quiz at their own speed
   const res0 = await emitAck(a, 'player:answer', { qIndex: 0, answer: answerFor(firstA.question) });

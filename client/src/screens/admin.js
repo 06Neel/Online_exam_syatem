@@ -3,8 +3,9 @@
 import { h, mount, toast, modal } from '../ui.js';
 import { store } from '../state.js';
 import { go } from '../main.js';
-import { signOut, authToken } from '../auth.js';
+import { authToken } from '../auth.js';
 import { request } from '../net.js';
+import { topbar } from '../topbar.js';
 
 export const title = 'Administration';
 
@@ -369,20 +370,14 @@ export function render(root) {
 
   // ---------- page ----------
   mount(root,
-    h('div', { class: 'screen narrow' },
-      h('div', { class: 'row', style: { marginBottom: '14px', justifyContent: 'space-between' } },
-        h('div', { class: 'row' },
-          h('button', { class: 'btn small ghost', onClick: () => go('#/') }, '← Home'),
-          h('span', { class: 'chip topic' }, '⚙️ Administration')),
-        h('button', {
-          class: 'btn small ghost', type: 'button',
-          onClick: async () => { await signOut(); go('#/teacher/login'); },
-        }, 'Sign out')),
-
-      h('div', { class: 'card' },
+    h('div', { class: 'screen narrow pro' },
+      topbar('', { admin: true }),
+      h('div', { class: 'page-head' },
         h('h1', null, 'Admin panel'),
         h('p', { class: 'muted' },
-          `Signed in as ${store.auth?.name || 'Administrator'}. Teacher accounts, passwords and a view of what is running - nothing else lives here.`),
+          `Signed in as ${store.auth?.name || 'Administrator'}. Teacher accounts, passwords and a view of what is running - nothing else lives here.`)),
+
+      h('div', { class: 'card' },
         h('h2', null, 'Overview'),
         overviewBox),
 

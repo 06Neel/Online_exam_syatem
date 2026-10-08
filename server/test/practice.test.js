@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rmSync } from 'node:fs';
+import { marksFor, COSTS_DEFAULT, round2 } from '../../shared/scoring.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 3198;
@@ -78,7 +79,7 @@ test('a full practice run scores, revises and reports', async () => {
     if (!result.correct) {
       assert.ok(result.mini, 'a wrong answer offers the try-again mini question');
       const mini = await engine.mini(true);
-      assert.equal(mini.earned, 10, 'nailing the mini gives a consolation +10');
+      assert.equal(mini.earned, marksFor(q.difficulty, q.boss, null), 'nailing the mini pays the question marks');
     } else {
       assert.ok(result.earned > 0, 'correct answers pay out');
     }
@@ -102,7 +103,7 @@ test('a full practice run scores, revises and reports', async () => {
   assert.ok(Array.isArray(me.badges), 'badges come back as ids');
 });
 
-test('power-ups work in practice mode and cost points', async () => {
+test('power-ups work in practice mode and cost marks', async () => {
   const { LocalEngine } = await import('../../client/src/game/localEngine.js');
   const engine = new LocalEngine({ units: [5], count: 4, difficulty: 'easy' });
   await engine.init();
@@ -112,14 +113,16 @@ test('power-ups work in practice mode and cost points', async () => {
 
   const hint = await engine.powerup('hint');
   assert.ok(hint.ok, hint.error);
-  assert.equal(hint.cost, 15);
+  assert.equal(hint.cost, COSTS_DEFAULT.hint);
   assert.ok(hint.hint.length > 5);
 
   const q = seen[0].question;
+  let usedFifty = false;
   if (q.options && q.answer.length === 1) {
     const fifty = await engine.powerup('fifty');
     assert.ok(fifty.ok, fifty.error);
     assert.equal(fifty.remove.length, 2);
+    usedFifty = true;
   }
 
   const extra = await engine.powerup('extraTime');
@@ -128,8 +131,13 @@ test('power-ups work in practice mode and cost points', async () => {
 
   const { result } = await engine.submit(answerFor(q));
   const labels = result.breakdown.map((b) => b.label).join('|');
-  assert.match(labels, /Hint/, 'the hint cost shows up in the breakdown');
-  assert.ok(result.earned > 0, 'still scores after the costs');
+  assert.match(labels, /Hint used/, 'the hint cost shows up in the breakdown');
+  if (usedFifty) assert.match(labels, /50-50 used/, 'the 50-50 cost is listed too');
+  assert.ok(Number.isFinite(result.earned), 'the answer still scores after the costs');
+  const spent = result.breakdown.filter((b) => b.value < 0).reduce((s, b) => s + b.value, 0);
+  assert.ok(spent < 0, 'power-ups only ever take marks away');
+  const sum = round2(result.breakdown.reduce((s, b) => s + b.value, 0));
+  assert.equal(sum, result.earned, 'the chips add up to the total');
 });
 
 test('practice with the question timer off runs at the student\'s own pace', async () => {

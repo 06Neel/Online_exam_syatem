@@ -1,6 +1,6 @@
 import { h, mount, confetti, esc, pct } from '../ui.js';
 import { badgeById } from '../../../shared/badges.js';
-import { rankTeams } from '../../../shared/scoring.js';
+import { rankTeams, fmtMarks, comparePlayers } from '../../../shared/scoring.js';
 import { BAND_INFO } from '../../../shared/quiz.js';
 import { store, save } from '../state.js';
 import { go } from '../main.js';
@@ -38,7 +38,7 @@ export function render(root) {
   const names = namesFor(report);
   const accuracy = me.accuracy ?? report.totals?.accuracy ?? 0;
   const strong = Object.values(unitStats).filter((s) => s.band === 'strong').length;
-  const ranked = report.players.slice().sort((a, b) => b.score - a.score);
+  const ranked = report.players.slice().sort(comparePlayers);
   const myRank = ranked.findIndex((p) => p.id === me.id) + 1;
 
   if (accuracy >= 0.75) confetti(70);
@@ -63,6 +63,10 @@ export function render(root) {
     }, `${q.correct ? '✓' : '✗'} ${q.refresher ? '↻' : ''} ${q.id.replace(/^u(\d)-q(\d+)$/, (_, u, n) => `L${u}.${n}`)}`));
 
   const weak = (report.weakUnits || []).filter(Boolean);
+  // old reports kept their "Score" wording; fixed-marks runs say Marks
+  const marksMode = Number.isFinite(report.maxMarks);
+  const scoreLabel = marksMode ? 'Marks' : 'Score';
+  const fmtScore = (n) => (marksMode ? fmtMarks(n) : String(n ?? 0));
   // team-mode runs: the final team standings (solo players keep their own rank)
   const teams = report.config?.teamMode ? rankTeams(report.players) : [];
   const myTeam = me.team ? teams.find((t) => t.name === me.team) : null;
@@ -89,7 +93,9 @@ export function render(root) {
             h('p', { class: 'muted', style: { margin: '6px 0 0' } },
               `${me.nickname}${me.team ? ` · 👥 ${me.team}${myTeam ? ` (team #${myTeam.rank})` : ''}` : ''} · ${report.players.length > 1 ? `ranked ${myRank} of ${report.players.length}` : 'private run, no ranking'}`)),
           h('div', { class: 'row' },
-            h('div', { class: 'stat brand' }, h('div', { class: 'k' }, 'Score'), h('div', { class: 'v' }, me.score)),
+            h('div', { class: 'stat brand' }, h('div', { class: 'k' }, scoreLabel),
+              h('div', { class: 'v' }, fmtScore(me.score)),
+              marksMode ? h('div', { class: 'muted small' }, `of ${fmtMarks(report.maxMarks)}`) : null),
             h('div', { class: `stat ${accuracy >= 0.7 ? 'good' : accuracy < 0.5 ? 'bad' : ''}` },
               h('div', { class: 'k' }, 'Accuracy'), h('div', { class: 'v' }, `${Math.round(accuracy * 100)}%`)),
             h('div', { class: 'stat' }, h('div', { class: 'k' }, 'Best streak'), h('div', { class: 'v' }, `🔥${me.bestStreak || 0}`))))),
@@ -104,8 +110,8 @@ export function render(root) {
               h('span', { class: `chip ${t.rank === 1 ? 'good' : ''}` }, `#${t.rank}`),
               h('span', { style: { flex: 1, minWidth: 0 } },
                 h('b', null, `👥 ${t.name}`, t.name === me.team ? h('span', { class: 'chip topic', style: { marginLeft: '6px' } }, 'your team') : null),
-                h('div', { class: 'meta' }, `${(t.members || []).join(', ')} · avg ${t.avg} · ${pct(t.accuracy)} right`)),
-              h('span', { class: 'score' }, t.score)))),
+                h('div', { class: 'meta' }, `${(t.members || []).join(', ')} · avg ${fmtScore(t.avg)} · ${pct(t.accuracy)} right`)),
+              h('span', { class: 'score' }, fmtScore(t.score))))),
           h('p', { class: 'muted small', style: { margin: '10px 0 0' } },
             'Solo players are ranked individually above - no fake teams here.'))
         : null,
@@ -158,10 +164,13 @@ export function render(root) {
 }
 
 function downloadReport(report) {
-  const rows = [['Student', 'Team', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (s)', 'Best streak', 'Weak units']];
+  const marksMode = Number.isFinite(report.maxMarks);
+  const rows = [marksMode
+    ? ['Student', 'Team', 'Marks', 'Correct', 'Wrong', 'Accuracy', 'Time (s)', 'Best streak', 'Weak units']
+    : ['Student', 'Team', 'Score', 'Correct', 'Wrong', 'Accuracy', 'Time (s)', 'Best streak', 'Weak units']];
   for (const p of report.players) {
     rows.push([
-      p.nickname, p.team || 'Solo', p.score, p.correct, p.wrong,
+      p.nickname, p.team || 'Solo', marksMode ? fmtMarks(p.score) : p.score, p.correct, p.wrong,
       `${Math.round((p.accuracy || 0) * 100)}%`,
       Math.round((p.totalTimeMs || 0) / 1000),
       p.bestStreak || 0,

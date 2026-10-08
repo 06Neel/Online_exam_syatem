@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadBank } from '../../questions/validate.mjs';
 import { buildQuiz, chooseRefreshers, shuffleOptions, timerFor, strengthMap, BAND_INFO } from '../../shared/quiz.js';
-import { scoreAnswer, BASE_POINTS, BOSS_POINTS } from '../../shared/scoring.js';
+import { scoreAnswer, MARKS_DEFAULT } from '../../shared/scoring.js';
 
 const bank = loadBank();
 
@@ -110,21 +110,28 @@ test('question timer: per-question timeLimit, then one common clock, then defaul
   assert.equal(timerFor({ difficulty: 'easy' }, {}, null), 30, 'no common clock keeps the classic defaults');
 });
 
-test('per-quiz point overrides replace the base scores', () => {
-  const base = scoreAnswer({ difficulty: 'easy', correct: true, timeLeftFraction: 0, streak: 0 });
-  assert.equal(base.base, BASE_POINTS.easy, 'no override = the published table');
+test('per-quiz mark overrides replace the difficulty table', () => {
+  const base = scoreAnswer({ difficulty: 'easy', correct: true, marks: MARKS_DEFAULT });
+  assert.equal(base.base, MARKS_DEFAULT.easy, 'no override = the published table');
 
   const custom = scoreAnswer({
-    difficulty: 'easy', correct: true, timeLeftFraction: 0, streak: 0,
-    points: { easy: 111, medium: 112, hard: 113, boss: 114 },
+    difficulty: 'easy', correct: true,
+    marks: { easy: 11, medium: 12, hard: 13, boss: 14 },
   });
-  assert.equal(custom.base, 111);
-  assert.ok(custom.earned >= 111, 'streak and speed add on top of the custom base');
+  assert.equal(custom.base, 11);
+  assert.equal(custom.earned, 11, 'no speed or streak on top any more');
 
   const boss = scoreAnswer({
-    difficulty: 'hard', boss: true, correct: true, timeLeftFraction: 0, streak: 0,
-    points: { hard: 113, boss: 114 },
+    difficulty: 'hard', boss: true, correct: true,
+    marks: { hard: 13, boss: 14 },
   });
-  assert.equal(boss.base, 114);
-  assert.equal(scoreAnswer({ difficulty: 'hard', boss: true, correct: true, streak: 0 }).base, BOSS_POINTS);
+  assert.equal(boss.base, 14, 'boss pays the boss entry');
+  assert.equal(
+    scoreAnswer({ difficulty: 'hard', boss: true, correct: true }).base,
+    MARKS_DEFAULT.hard,
+    'no override: boss falls back to the hard marks',
+  );
+
+  const perQuestion = scoreAnswer({ difficulty: 'easy', correct: true, questionMarks: 4.5 });
+  assert.equal(perQuestion.base, 4.5, 'a per-question marks value beats the whole table');
 });

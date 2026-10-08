@@ -9,14 +9,17 @@ export const title = 'Join';
 
 const NICK_SUGGESTIONS = ['CodeNinja', 'BugHunter', 'LoopLover', 'PyKid', 'IndentIvy', 'SemicolonSam', 'ListLiz', 'TupleTom'];
 
-export function render(root) {
+export function render(root, params = {}) {
   let busy = false;
+
+  // "Copy join link" on the teacher side sends /#/join?code=ABCD - prefill it
+  const linkCode = String(params.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
 
   const codeInput = h('input', {
     type: 'text', maxlength: '4', placeholder: 'E.G. K7PD',
     'aria-label': 'Game code', autocomplete: 'off', spellcheck: 'false',
     style: { textTransform: 'uppercase', letterSpacing: '.35em', fontSize: '1.5rem', fontWeight: '800', textAlign: 'center' },
-    value: store.code || '',
+    value: linkCode || store.code || '',
     onInput: (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); },
   });
 
@@ -59,6 +62,9 @@ export function render(root) {
         // question timer contract from the join ack (question:start refines it live)
         timerOn: res.timerOn, selfPaced: res.selfPaced,
         allowBack: res.allowBack, allowSkip: res.allowSkip, quizEndsAt: res.quizEndsAt,
+        // fixed-marks scoring contract (power-up costs + labels on the card)
+        marks: res.marks, costs: res.costs,
+        negativeMarking: res.negativeMarking, negativeAmount: res.negativeAmount,
       });
 
       if (res.started) go('#/play');

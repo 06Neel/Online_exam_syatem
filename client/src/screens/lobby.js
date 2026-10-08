@@ -2,6 +2,7 @@ import { h, mount, toast, themeSwitch } from '../ui.js';
 import { getActive, clearActive } from '../game/session.js';
 import { store } from '../state.js';
 import { go } from '../main.js';
+import { fmtMarks } from '../../../shared/scoring.js';
 
 export const title = 'Lobby';
 
@@ -17,11 +18,15 @@ export function render(root) {
   const roster = h('div', { class: 'roster' }, h('div', { class: 'p' }, h('span', null, `${store.nickname} (you)`)));
   const countEl = h('span', { class: 'chip' }, '1 player');
 
+  const costs = { hint: 0.5, fifty: 1, extraTime: 0, skip: 0, ...(meta.costs || {}) };
+  const costNote = (n) => (Number(n) > 0 ? ` (-${fmtMarks(n)} marks)` : ' (free)');
   const tips = [
-    '💡 You can use a Hint (-15 pts) if you get stuck - nobody sees it.',
-    '🔥 Streaks give bonus points, but a correct answer always beats a fast guess.',
+    `💡 You can use a Hint${costNote(costs.hint)} if you get stuck - nobody sees it.`,
+    '🏆 Every question is worth its own marks: easy 1, medium 1.5, hard 2 (bosses 2).',
     '🐛 Wrong answers give you a mini "try again" question on the same idea.',
-    '🏆 Speed adds at most 40% - understanding is worth far more.',
+    meta.negativeMarking
+      ? `⚠️ Negative marking is ON: a wrong answer costs ${fmtMarks(meta.negativeAmount ?? 0.25)} marks. Timeouts and skips are never penalised.`
+      : '✅ No negative marking - a wrong answer simply scores 0 for that question.',
   ];
 
   mount(root,
