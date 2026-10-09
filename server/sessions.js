@@ -2,7 +2,7 @@
 import { randomInt } from 'node:crypto';
 import { loadBank, publicQuestion, getFacts, loadSetQuestions, setDisplayName } from './bank.js';
 import { saveReport } from './reports.js';
-import { buildQuiz, shuffleOptions, timerFor, MAX_REFRESHERS_PER_LEVEL } from '../shared/quiz.js';
+import { buildQuiz, shuffleOptions, timerFor } from '../shared/quiz.js';
 import { scoreAnswer, comparePlayers, comparePlayersSelfPaced, rankTeams, MARKS_DEFAULT, COSTS_DEFAULT, NEGATIVE_DEFAULT, marksFor, fmtMarks, REFRESHER_MULT, round2 } from '../shared/scoring.js';
 import { evaluateBadges, badgeById, ENCOURAGEMENTS } from '../shared/badges.js';
 import { saveSnapshot, dropSnapshot, loadSnapshots, MAX_AGE_MS } from './snapshots.js';
@@ -138,7 +138,6 @@ export class Session {
       className: String(config.className || '').slice(0, 40),
       section: String(config.section || '').slice(0, 24),
       useFacts: config.useFacts !== false,
-      revisionRounds: config.revisionRounds !== false,
       ownerId: config.ownerId || null,
       ownerName: config.ownerName || '',
       questionIds: (Array.isArray(config.questionIds) ? config.questionIds : [])
@@ -174,7 +173,6 @@ export class Session {
     this.endedAt = null;
     this.lastFacts = { bugs: null, didYouKnow: null };
     this.shownFor = null;         // `${qIndex}:${questionId}` once the teacher showed the answer
-    this.revisionFor = new Set(); // units that already got a revision round
     this.setBank = null;          // Map id -> question once a set-bound quiz loads
     this.controllers = new Set(); // teacher sockets currently driving this session
     this.lastActivity = Date.now(); // last mutation - the expiry sweep keys off this
@@ -216,7 +214,6 @@ export class Session {
       stats: this.stats,
       questionLog: this.questionLog,
       classEvents: this.classEvents,
-      revisionFor: [...this.revisionFor],
       startedAt: this.startedAt,
       endedAt: this.endedAt,
       pausedRemaining: this.pausedRemaining,
@@ -284,7 +281,6 @@ export class Session {
     s.stats = snap.stats && typeof snap.stats === 'object' ? snap.stats : {};
     s.questionLog = Array.isArray(snap.questionLog) ? snap.questionLog : [];
     s.classEvents = Array.isArray(snap.classEvents) ? snap.classEvents : [];
-    s.revisionFor = new Set(Array.isArray(snap.revisionFor) ? snap.revisionFor : []);
     s.startedAt = snap.startedAt ?? null;
     s.endedAt = snap.endedAt ?? null;
     s.pausedRemaining = snap.pausedRemaining ?? null;
@@ -433,12 +429,19 @@ export class Session {
     if (this.status !== 'lobby' && this.status !== 'ended') return false;
     this.ensureSetBank();  // a set quiz always (re)loads its own file here
     if (!this.config.setId && this.config.questionIds.length) {
-      // quiz built from an explicit id list: exactly these questions, in this order
+      // quiz built from an explicit id list: exactly these questions, in this
+      // order, with duplicates dropped (a question is never asked twice)
       const byId = new Map(this.bankQuestions().map((q) => [q.id, q]));
-      this.quiz = this.config.questionIds
-        .map((id) => byId.get(id))
-        .filter(Boolean)
-        .map((q) => ({ id: q.id, refresher: false, unit: q.unit, difficulty: q.difficulty, boss: q.boss }));
+      const seenIds = new Set();
+      const picked = [];
+      for (const id of this.config.questionIds) {
+        if (seenIds.has(id)) continue;
+        const q = byId.get(id);
+        if (!q) continue;
+        seenIds.add(id);
+        picked.push({ id: q.id, refresher: false, unit: q.unit, difficulty: q.difficulty, boss: q.boss });
+      }
+      this.quiz = picked;
     } else {
       this.quiz = buildQuiz({
         bank: this.bankQuestions(),
@@ -482,26 +485,12 @@ export class Session {
     }
   }
 
-  /** Insert a class revision round when the class crosses into a new level. */
-  maybeRefreshers() {
-    const entry = this.quiz[this.qIndex + 1];
-    if (entry && this.config.revisionRounds && this.qIndex >= 0) {
-      const prev = this.quiz[this.qIndex];
-      if (prev && entry.unit !== prev.unit && !this.revisionFor.has(entry.unit) && this.quiz.length >= 6) {
-        const picks = this.pickClassRefreshers(entry.unit);
-        if (picks.length) {
-          this.quiz.splice(this.qIndex + 1, 0, ...picks.map((q) => ({
-            id: q.id, refresher: true, unit: q.unit, difficulty: q.difficulty, boss: false,
-          })));
-          this.revisionFor.add(entry.unit);
-        }
-      }
-    }
-  }
-
+  /** No question is ever inserted mid-run: the class revision round used to
+   * splice the class's missed questions back in at every level boundary, which
+   * is exactly how the same question kept coming back. The list built at
+   * start() is the list the class walks, start to finish. */
   advance() {
     this.clearTimers();
-    this.maybeRefreshers();
 
     this.qIndex++;
     if (this.qIndex >= this.quiz.length) return this.end();
@@ -655,7 +644,6 @@ export class Session {
   /** The leading player stepped onto a new question: grow the shared frontier. */
   growFrontier(target) {
     while (this.qIndex < target) {
-      this.maybeRefreshers();
       this.qIndex++;
       const e = this.quiz[this.qIndex];
       if (!e) break;
@@ -1244,57 +1232,6 @@ export class Session {
     this.toPlayer(player, 'answer:accepted', payload);
   }
 
-  // ---------- class revision round ----------
-  pickClassRefreshers(nextUnit) {
-    const bank = this.bankQuestions();
-    const inQuiz = new Set(this.quiz.map((q) => q.id));
-    const limit = MAX_REFRESHERS_PER_LEVEL;
-    const out = [];
-
-    // 1) questions the class actually missed most (earlier levels only)
-    const wrongCount = {};
-    for (const ev of this.classEvents) {
-      if (ev.refresher || ev.correct) continue;
-      const q = bank.find((x) => x.id === ev.id);
-      if (q && q.unit < nextUnit && !q.boss) wrongCount[ev.id] = (wrongCount[ev.id] || 0) + 1;
-    }
-    for (const id of Object.entries(wrongCount).sort((a, b) => b[1] - a[1]).map(([id]) => id)) {
-      if (out.length >= limit) break;
-      const q = bank.find((x) => x.id === id);
-      if (q) out.push(q);
-    }
-
-    // 2) class-weak units (<60%)
-    if (out.length < limit) {
-      const stats = this.classUnitStats();
-      const weak = Object.entries(stats)
-        .filter(([u, s]) => Number(u) < nextUnit && s.total >= 3 && s.accuracy < 0.6)
-        .map(([u]) => Number(u));
-      const cands = bank.filter(
-        (q) => !q.boss && weak.includes(q.unit) && !out.some((o) => o.id === q.id)
-      );
-      const rng = [...cands].sort(() => Math.random() - 0.5);
-      for (const q of rng) {
-        if (out.length >= limit) break;
-        out.push(q);
-      }
-    }
-
-    // 3) anything fresh and unseen
-    if (out.length < limit) {
-      const seenEvents = new Set(this.classEvents.map((e) => e.id));
-      const fresh = bank.filter(
-        (q) => !q.boss && !inQuiz.has(q.id) && !seenEvents.has(q.id) && !out.some((o) => o.id === q.id)
-      );
-      for (const q of [...fresh].sort(() => Math.random() - 0.5)) {
-        if (out.length >= limit) break;
-        out.push(q);
-      }
-    }
-
-    return out;
-  }
-
   // ---------- broadcasts ----------
   emitAll(event, payload) {
     this.io.to(this.room).emit(event, payload);
@@ -1310,8 +1247,9 @@ export class Session {
 
   ranked() {
     const cmp = this.currentPaced ? comparePlayersSelfPaced : comparePlayers;
+    // every student who joined keeps their seat: a finished player who closed
+    // the tab (status "disconnected") still has a score, a rank and a report row
     return [...this.players.values()]
-      .filter((p) => p.status !== 'disconnected')
       .sort(cmp)
       .map((p, i) => ({ ...p, rank: i + 1 }));
   }
@@ -1428,6 +1366,7 @@ export class Session {
     return {
       qIndex: this.qIndex,
       prompt: q?.prompt,
+      code: q?.code || null,
       type: q?.type,
       counts: st.counts,
       correct: st.correct,

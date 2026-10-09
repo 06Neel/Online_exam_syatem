@@ -2,6 +2,7 @@
 import { h, mount, toast, confetti, climbToast, fmtClock, esc } from '../ui.js';
 import { renderQuestion, markAnswer } from '../game/questionView.js';
 import { getActive, clearActive } from '../game/session.js';
+import { enterSession } from '../game/enterSession.js';
 import { store, save } from '../state.js';
 import { go } from '../main.js';
 import { startHeartbeat, request } from '../net.js';
@@ -36,7 +37,7 @@ export const title = 'Play';
 export function render(root) {
   const active = getActive();
   if (!active) {
-    go('#/');
+    resumeSession(root);   // reload or a dropped socket: rejoin where we left off
     return;
   }
   current = active;
@@ -697,7 +698,7 @@ export function render(root) {
       clearActive();
       go('#/results');
     }));
-    cleanup.push(engine.on('finished', (p) => {
+    const onFinished = (p) => {
       // self-paced: every question answered - park here until the quiz ends
       answered = true;
       clearInterval(timerHandle);
@@ -721,7 +722,9 @@ export function render(root) {
         h('p', { class: 'muted small', style: { margin: '10px 0 0' } },
           'Great run - hang tight while the rest of the class finishes.')));
       feedbackSlot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }));
+    };
+    cleanup.push(engine.on('finished', onFinished));
+    if (engine.finished) onFinished(engine.finished); // replayed after a reload
     cleanup.push(engine.on('peer-joined', (p) => {
       if (p?.rebind) return; // somebody reconnected - they never really left
       toast(`${p.nickname} joined the game 👋`, '', 1800);
@@ -754,6 +757,33 @@ export function render(root) {
   const onVis = () => { if (document.hidden && meta.mode === 'practice' && !answered) endsAt += 0; };
   document.addEventListener('visibilitychange', onVis);
   cleanup.push(() => document.removeEventListener('visibilitychange', onVis));
+}
+
+/** No live engine in memory (page reload, or the socket dropped): quietly
+ *  rejoin the saved session so the student lands back on their question. */
+let resuming = false;
+function resumeSession(root) {
+  if (!(store.code && store.nickname)) { go('#/'); return; }
+  if (resuming) return;
+  resuming = true;
+  mount(root, h('div', { class: 'screen narrow' },
+    h('div', { class: 'card center' },
+      h('h1', { class: 'muted' }, 'Rejoining your quiz…'),
+      h('p', { class: 'muted small' }, `Putting you back in as ${store.nickname} in session ${store.code}.`),
+      h('p', { class: 'muted small' }, 'Your score and progress are safe.'))));
+  enterSession({ code: store.code, nickname: store.nickname, team: store.team })
+    .then((res) => {
+      resuming = false;
+      if (!getActive()) { go('#/'); return; }
+      if (res.started) render(root);
+      else go('#/lobby');
+    })
+    .catch((e) => {
+      resuming = false;
+      save({ code: '' });   // that session is gone - start from Home
+      go('#/');
+      toast(e.message || 'This session is no longer open.', 'bad', 4500);
+    });
 }
 
 function modalish(titleText, body) {

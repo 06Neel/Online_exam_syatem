@@ -1,16 +1,37 @@
 import { h, mount, toast, themeSwitch } from '../ui.js';
 import { getActive, clearActive } from '../game/session.js';
-import { store } from '../state.js';
+import { enterSession } from '../game/enterSession.js';
+import { store, save } from '../state.js';
 import { go } from '../main.js';
 import { fmtMarks } from '../../../shared/scoring.js';
 
 export const title = 'Lobby';
 
 let unsubs = [];
+let resuming = false;
 
 export function render(root) {
   const active = getActive();
-  if (!active) { go('#/'); return; }
+  if (!active) {
+    // a reload in the lobby: quietly rejoin so the student keeps their seat
+    if (store.code && store.nickname && !resuming) {
+      resuming = true;
+      mount(root, h('div', { class: 'screen narrow' },
+        h('div', { class: 'card center' },
+          h('h1', { class: 'muted' }, 'Putting you back in the lobby…'))));
+      enterSession({ code: store.code, nickname: store.nickname, team: store.team })
+        .then(() => { resuming = false; render(root); })
+        .catch((e) => {
+          resuming = false;
+          save({ code: '' });   // that session is gone - start from Home
+          go('#/');
+          toast(e.message || 'This session is no longer open.', 'bad', 4500);
+        });
+      return;
+    }
+    go('#/');
+    return;
+  }
 
   const { engine, meta } = active;
   if (meta.started) { go('#/play'); return; }

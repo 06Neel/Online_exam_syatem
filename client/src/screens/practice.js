@@ -111,7 +111,7 @@ export function render(root) {
 
       h('div', { class: 'card' },
         h('h1', null, 'Practice your way'),
-        h('p', { class: 'muted' }, 'No leaderboard, no timer pressure on marks, and revision questions that come back from your weak areas.'),
+        h('p', { class: 'muted' }, 'No leaderboard, no timer pressure on marks - one clean run through the questions you choose.'),
 
         h('h2', null, 'Pick your levels'),
         h('div', { class: 'col', style: { gap: '8px' } }, unitChecks),
@@ -132,7 +132,7 @@ export function render(root) {
 
         h('div', { style: { marginTop: '18px' } }, startBtn)),
 
-      h('p', { class: 'muted small center' }, 'Tip: start with 2-3 topics so revision can revisit them later.')
+      h('p', { class: 'muted small center' }, 'Tip: keep the first run short - you can always start another one from more topics.')
     )
   );
 }

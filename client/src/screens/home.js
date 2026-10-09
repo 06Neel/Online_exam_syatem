@@ -37,7 +37,7 @@ export function render(root) {
 
         h('div', { class: 'card' },
           h('h2', null, '🌱 Practice on your own'),
-          h('p', { class: 'muted' }, 'Private mode: no leaderboard, unlimited retries, and revision questions from your weak areas.'),
+          h('p', { class: 'muted' }, 'Private mode: no leaderboard, unlimited retries, and questions from the levels you pick - never asked twice.'),
           h('button', { class: 'btn block', onClick: () => go('#/practice') }, 'Start practicing')),
 
         h('div', { class: 'card' },

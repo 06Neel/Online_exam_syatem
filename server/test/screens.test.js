@@ -437,3 +437,43 @@ test('the editor works on one selected question bank at a time', async () => {
     state.save({ teacherToken: '', editorBankId: 'default' });
   }
 });
+
+test('question formatting survives: code block, line breaks, indentation', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const { h } = await import('../../client/src/ui.js');
+  const { renderQuestion } = await import('../../client/src/game/questionView.js');
+
+  const code = 'for i in range(2):\n    print(i)   # indented\n';
+  const prompt = 'What does this print?\n\n    for i in range(2):\n        print(i)';
+  const option = 'It prints\n  two lines\nwith the 4-space indent';
+
+  // the student card: the code sample is a block, the raw characters are kept
+  const view = renderQuestion({
+    id: 'u1-q01', type: 'code-output', unit: 1, difficulty: 'easy', boss: false,
+    prompt, code,
+    options: [{ id: 'a', text: option }, { id: 'b', text: 'nope' }],
+    answer: ['a'], explanation: 'x', analogy: 'y', hint: 'z',
+  });
+  const pre = view.element.querySelector('.code-block pre.code');
+  assert.ok(pre, 'a code question renders its code block');
+  assert.equal(pre.textContent, code, 'the code block keeps every space and newline');
+  assert.equal(view.element.querySelector('.option .txt').textContent, option, 'an option keeps its own line breaks');
+
+  // the prompt (play.js and the teacher board both hand the raw string to h())
+  const promptEl = h('p', { class: 'prompt' }, prompt);
+  assert.equal(promptEl.textContent, prompt, 'the prompt keeps the newlines and indentation');
+
+  // ...and the stylesheet tells the browser to show them instead of collapsing
+  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'client', 'src', 'styles', 'app.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');   // comments would otherwise glue themselves to the next selector
+  const rules = [...css.matchAll(/([^{}]+)\{([^}]+)\}/g)]
+    .reduce((m, [, sel, body]) => (m[sel.trim()] = body, m), {});
+  const styled = (sel, prop) => Object.entries(rules)
+    .some(([s, b]) => s.split(',').map((x) => x.trim()).includes(sel) && new RegExp(`${prop}\\s*:\\s*pre-wrap`).test(b));
+  assert.ok(styled('.prompt', 'white-space'), '.prompt honours line breaks');
+  assert.ok(styled('.option .txt', 'white-space'), 'option text honours line breaks');
+  assert.ok(styled('.bar-row .label', 'white-space'), 'leaderboard bar labels are never squashed to one line');
+  assert.ok(styled('.explain p', 'white-space'), 'the explanation keeps the teacher line breaks');
+});

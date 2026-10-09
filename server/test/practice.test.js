@@ -47,14 +47,13 @@ function answerFor(q) {
   return [...q.answer]; // always the right answer
 }
 
-test('a full practice run scores, revises and reports', async () => {
+test('a full practice run scores, explains and reports', async () => {
   const { LocalEngine } = await import('../../client/src/game/localEngine.js');
 
   const engine = new LocalEngine({ units: [1, 2], count: 8, difficulty: 'mixed' });
   await engine.init();
   assert.ok(engine.questions.length >= 4, 'questions were fetched');
   assert.ok(engine.questions[0].explanation, 'practice questions include explanations');
-  assert.ok(engine.pool.length >= 24, 'the pool covers both units for revision');
 
   const seenQuestions = [];
   engine.on('question', (p) => seenQuestions.push(p));
@@ -66,7 +65,7 @@ test('a full practice run scores, revises and reports', async () => {
     const payload = seenQuestions[seenQuestions.length - 1];
     const q = payload.question;
 
-    // mix in a wrong answer on the first question so revision has something to chew on
+    // mix in a wrong answer on the first question to exercise the try-again mini
     const answer = guard === 1 && q.options
       ? [q.options.find((o) => !q.answer.includes(o.id)).id]
       : answerFor(q);

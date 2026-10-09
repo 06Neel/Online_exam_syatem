@@ -1,9 +1,7 @@
 import { h, mount, toast } from '../ui.js';
-import { store, save } from '../state.js';
+import { store } from '../state.js';
 import { go } from '../main.js';
-import { emitAck, getSocket, on } from '../net.js';
-import { LiveEngine } from '../game/liveEngine.js';
-import { setActiveGame, clearActive } from '../game/session.js';
+import { enterSession } from '../game/enterSession.js';
 
 export const title = 'Join';
 
@@ -50,23 +48,8 @@ export function render(root, params = {}) {
     joinBtn.disabled = true;
     joinBtn.textContent = 'Joining…';
     try {
-      const res = await emitAck('player:join', { code, nickname, team: teamInput.value.trim() || undefined });
-      if (res.error) throw new Error(res.error);
-      save({ code, nickname, team: teamInput.value.trim(), playerId: res.playerId });
-
-      const engine = new LiveEngine({ code, playerId: res.playerId });
-      engine.attach();
-      clearActive();
-      setActiveGame(engine, {
-        mode: 'live', code, teamMode: res.teamMode, started: res.started, title: res.title,
-        // question timer contract from the join ack (question:start refines it live)
-        timerOn: res.timerOn, selfPaced: res.selfPaced,
-        allowBack: res.allowBack, allowSkip: res.allowSkip, quizEndsAt: res.quizEndsAt,
-        // fixed-marks scoring contract (power-up costs + labels on the card)
-        marks: res.marks, costs: res.costs,
-        negativeMarking: res.negativeMarking, negativeAmount: res.negativeAmount,
-      });
-
+      const team = teamInput.value.trim();
+      const res = await enterSession({ code, nickname, team });
       if (res.started) go('#/play');
       else go('#/lobby');
     } catch (e) {

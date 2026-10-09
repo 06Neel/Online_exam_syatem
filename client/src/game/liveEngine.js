@@ -55,6 +55,7 @@ export class LiveEngine {
     // self-paced: the server says this player has answered everything
     add('player:finished', (p) => {
       if (p.playerId && p.playerId !== this.playerId) return;
+      this.finished = p;   // kept so a page reload can paint the finished state
       this.emit('finished', p);
     });
 
@@ -76,6 +77,7 @@ export class LiveEngine {
         code: this.code,
         nickname: store.nickname,
         team: store.team || undefined,
+        playerId: this.playerId || store.playerId || undefined,   // proof of my seat
       }, 8000);
       this.rejoinTries = 0;
       if (!res?.ok) {

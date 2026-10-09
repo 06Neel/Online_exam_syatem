@@ -275,7 +275,15 @@ export function render(root, params = {}) {
       questionCard.append(chips);
     }
 
-    questionCard.append(h('p', { class: 'prompt', style: { ...clamp2, marginTop: '10px' } }, prompt));
+    questionCard.append(h('p', { class: 'prompt', style: { marginTop: '10px' } }, prompt));
+
+    // the code sample is part of the question - students see it as a block, so does the board
+    const code = st?.code || q?.code || '';
+    if (code) {
+      questionCard.append(h('div', { class: 'code-block', style: { marginTop: '10px' } },
+        h('span', { class: 'lang' }, q?.type === 'spot-error' ? 'spot the bug' : 'python'),
+        h('pre', { class: 'code' }, code)));
+    }
 
     const right = st?.correct || 0;
     const wrong = st?.wrong || 0;
@@ -354,9 +362,7 @@ export function render(root, params = {}) {
         struggleCard.append(h('div', { class: 'spread', style: { padding: '8px 0', borderBottom: '1px solid var(--line)' } },
           h('div', null,
             h('b', null, `Q${(m.index ?? 0) + 1}${m.id ? ` · ${m.id}` : ''}`),
-            h('div', { class: 'muted small' }, `${pct(m.missRate || 0)} missed of ${m.total || 0} answers`)),
-          h('span', { class: 'chip refresher', title: 'A revision round brings ideas like this one back' },
-            '🔁 jump back later')));
+            h('div', { class: 'muted small' }, `${pct(m.missRate || 0)} missed of ${m.total || 0} answers`))));
       });
     }
 

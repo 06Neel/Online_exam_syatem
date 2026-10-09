@@ -243,6 +243,14 @@ code.inline { background: var(--surface-2); padding: 1px 7px; border-radius: 6px
 
 .prompt { font-size: clamp(1.1rem, 2.4vw, 1.3rem); font-weight: 650; margin-bottom: 6px; letter-spacing: -0.01em; }
 
+/* question text keeps its line breaks: code in a prompt, a multi-line option,
+   an explanation or a hint must render exactly as the teacher wrote it */
+.prompt, .explain p, .explain li, .analogy, .modal p, .modal .chip, .pa-prompt {
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.option .txt { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+
 .options { display: grid; gap: 12px; }
 .option {
   display: flex; align-items: center; gap: 14px; text-align: left;
@@ -433,7 +441,7 @@ tbody tr.needs { background: rgba(255, 123, 138, .07); }
 
 /* ---------- donut / bars ---------- */
 .bar-row { display: grid; grid-template-columns: 1fr 46px; gap: 10px; align-items: center; margin-bottom: 8px; }
-.bar-row .label { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row .label { font-size: .9rem; overflow-wrap: anywhere; white-space: pre-wrap; }
 .bar-track { grid-column: 1 / -1; height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .bar-track > span { display: block; height: 100%; background: var(--brand); }
 .bar-track > span.good { background: var(--good); }

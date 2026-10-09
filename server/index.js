@@ -116,7 +116,7 @@ app.get('/api/questions', (_req, res) => {
   res.json(questions.map(publicQuestion));
 });
 
-// Practice mode: sampled run + full pool (for automatic revision questions).
+// Practice mode: a sampled run from the chosen levels, plus the pool it came from.
 // Answers are included - practice is a private, no-leaderboard mode.
 const practiceLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
 app.get('/api/practice', practiceLimiter, (req, res) => {
@@ -688,23 +688,34 @@ io.on('connection', (socket) => {
     const s = store.get(payload.code);
     if (!s) return cb?.({ error: 'That session code does not exist. It may have expired - ask your teacher for a new code.' });
     if (s.status === 'ended') return cb?.({ error: 'This session has already finished.' });
-    if (!s.config.lateJoin && (s.status === 'running' || s.status === 'paused')) {
-      return cb?.({ error: 'This quiz does not accept late joins - check with your teacher.' });
-    }
-    if (s.players.size >= 200) return cb?.({ error: 'The room is full right now.' });
 
-    // a returning player keeps their seat: same nickname + a dead socket
-    // (refresh, or the server restarting under them) rebinds instead of duplicating
+    // A returning student keeps their seat: their saved playerId first (it only
+    // counts when the name typed now is the name on that seat), then their
+    // nickname when that seat is free to take over (their own socket, a dead
+    // one, or one the server has not heard from in a while). Only a genuinely
+    // new player runs into the late-join / room-cap rules.
     const nick = String(payload.nickname || '').trim().slice(0, 18) || 'Coder';
-    const ghost = [...s.players.values()].find((p) => p.nickname.toLowerCase() === nick.toLowerCase()
-      && (p.socketId == null || p.status === 'disconnected'));
+    const wantId = String(payload.playerId || '').trim();
+    const takeover = (p) => p.socketId == null || p.socketId === socket.id
+      || p.status === 'disconnected' || Date.now() - (p.lastSeen || 0) > 40_000;
+    const byId = wantId ? s.players.get(wantId) : null;
+    const seat = (byId && byId.nickname.toLowerCase() === nick.toLowerCase() ? byId : null)
+      || [...s.players.values()].find((p) => p.nickname.toLowerCase() === nick.toLowerCase() && takeover(p))
+      || null;
+    if (!seat) {
+      if (!s.config.lateJoin && (s.status === 'running' || s.status === 'paused')) {
+        return cb?.({ error: 'This quiz does not accept late joins - check with your teacher.' });
+      }
+      if (s.players.size >= 200) return cb?.({ error: 'The room is full right now.' });
+    }
+
     session = s;
     let rebind = false;
-    if (ghost && s.players.size < 200) {
-      ghost.socketId = socket.id;
-      ghost.status = 'attempting';
-      ghost.lastSeen = Date.now();
-      player = ghost;
+    if (seat) {
+      seat.socketId = socket.id;
+      seat.status = 'attempting';
+      seat.lastSeen = Date.now();
+      player = seat;
       rebind = true;
       s.persist();
     } else {

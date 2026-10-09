@@ -128,7 +128,7 @@ test('host creates a session, students join, the quiz runs end to end', async ()
   const practice = await practiceRes.json();
   assert.equal(practice.questions.length, 5);
   assert.ok(practice.questions[0].explanation && practice.questions[0].mini, 'practice questions are complete');
-  assert.ok(practice.pool.length >= 12, 'pool feeds revision mode');
+  assert.ok(practice.pool.length >= 12, 'the sampled run comes with its source pool');
 
   // two students join
   const a = connect(URL, { transports: ['websocket'], forceNew: true });
@@ -914,4 +914,47 @@ test('team mode: leaderboard carries team standings, solo players and individual
   const full = await (await fetch(`${URL}/api/reports/${code}`, { headers: { 'x-teacher-token': teacherToken } })).json();
   assert.ok(full.teams?.length === 1, 'GET report exposes teams');
   assert.deepEqual([...full.teams[0].members].sort(), ['Ann', 'Bo']);
+});
+
+
+test('an explicit question list is asked once each, in the given order', async () => {
+  const host = connect(URL, { transports: ['websocket'], forceNew: true });
+  sockets.push(host);
+  await new Promise((r) => host.on('connect', r));
+
+  const bank = await (await fetch(`${URL}/api/questions`)).json();
+  assert.ok(bank.length >= 3, 'the bank has questions to pick from');
+  // the same id twice on purpose - a run never serves a question twice
+  const chosen = [bank[0].id, bank[0].id, bank[1].id];
+
+  const created = await emitAck(host, 'host:create', {
+    token: teacherToken, title: 'Dedupe run', units: [1], count: 3,
+    questionIds: chosen, timerOn: false,
+  });
+  assert.ok(created.ok, created.error || 'session created');
+
+  const a = connect(URL, { transports: ['websocket'], forceNew: true });
+  sockets.push(a);
+  await new Promise((r) => a.on('connect', r));
+  const seen = [];
+  a.on('question:start', (p) => seen.push(p));
+  await emitAck(a, 'player:join', { code: created.code, nickname: 'Ida' });
+
+  const started = await emitAck(host, 'host:start');
+  assert.ok(started.ok);
+  assert.equal(started.total, 2, 'the duplicate id was dropped at start');
+
+  for (let i = 0; i < 2; i++) {
+    for (let t = 0; t < 60 && seen.length <= i; t++) await wait(100);
+    assert.ok(seen.length > i, `question ${i} arrived`);
+    assert.equal(seen[i].qIndex, i);
+    assert.equal(seen[i].question.id, chosen[i * 2], `question ${i} is the one that was asked for`);
+    assert.equal(seen[i].refresher, false, 'nothing is spliced into an explicit list');
+    const q = seen[i].question;
+    const answer = q.type === 'fill-blank' ? q.accepted[0]
+      : q.type === 'match' ? Object.fromEntries(q.pairs.map((p, ix) => [ix, p.right]))
+        : q.options[0].id;
+    assert.ok((await emitAck(a, 'player:answer', { qIndex: i, answer })).ok);
+    if (i < 1) assert.ok((await emitAck(a, 'player:advance')).ok);
+  }
 });

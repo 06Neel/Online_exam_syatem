@@ -64,7 +64,7 @@ questions/validate.mjs  bank linter (also used by npm run lint)
 shared/                 game rules used by BOTH client and server
   scoring.js            fixed marks, power-up costs, negative marking, ranking
   badges.js             badge definitions + incremental evaluation
-  quiz.js               level/question building, option shuffling, revision picker
+  quiz.js               level/question building and option shuffling
   rng.js                seeded randomness (fair, reproducible question order)
   units.js              syllabus unit names/types/levels (renameable per teacher)
   validate.js           question schema validation (upload preview + editor)
@@ -217,13 +217,18 @@ Run `npm run dev` on the teacher laptop and let students join via `http://<teach
 
 ## The two modes
 
-**Practice (private)** — no leaderboard, no pressure. Picked topics, automatic *refresher*
-questions from your own weak areas, unlimited retries, `Fix my weak spots` at the end.
+**Practice (private)** — no leaderboard, no pressure. Picked topics, unlimited retries,
+`Fix my weak spots` at the end.
 
 **Live (classroom)** — join with a code + fun nickname (real name optional), one question at a
 time (shared countdown when you turn the timer on, otherwise everyone at their own pace),
 instant feedback, streaks, badges, team mode, hidden bottom of the
 leaderboard (on by default), and an anonymous *"mistake of the class"* reveal for discussion.
+
+**No question is ever repeated.** Both modes walk the questions in order from start to
+finish - nothing is spliced back in at a level boundary (the old automatic revision round
+is gone), so a student who disconnects and rejoins resumes on the same question with their
+progress intact, and finishing students stay on the leaderboard and in the report.
 
 ---
 
@@ -240,7 +245,7 @@ same marks: no speed bonus, no streak bonus.
 | Wrong | **0**, or **−0.25** when negative marking is switched on (off by default) |
 | Timed out / skipped | **0** - never negative, never NaN |
 | Try-again mini correct | the mini question's difficulty marks |
-| Refresher (🔄) | same rules, ×0.8 |
+| Refresher (🔄) | same rules, ×0.8 - **legacy runs only**, new runs never repeat a question |
 | Hint / 50-50 / Extra time / Skip | **−0.5 / −1 / −0 / −0** by default |
 
 Power-up costs are charged whenever the power-up was used - correct or not. Totals round to

@@ -72,6 +72,13 @@ async function newSocket() {
   return s;
 }
 
+/** Wait until the collected question list has an entry at index i. */
+async function nextQ(list, i) {
+  for (let t = 0; t < 100 && list.length <= i; t++) await wait(100);
+  assert.ok(list.length > i, `question ${i} never arrived`);
+  return list[i];
+}
+
 async function createSession(extra = {}) {
   const host = await newSocket();
   const created = await emitAck(host, 'host:create', {
@@ -423,4 +430,102 @@ test('the whole-quiz limit ends a self-paced run on time', async () => {
   assert.equal(report.players[0].answerTimes.length, 4);
   assert.ok(report.players[0].answerTimes.every((t) => t === null), 'nothing was answered');
   await studentEnd;
+});
+
+
+test('a dropped student keeps their seat, and the run never repeats a question', async () => {
+  const { host, code } = await createSession({ timerOn: false, count: 5 });
+  const a = await newSocket();
+  const seenA = [];
+  a.on('question:start', (p) => seenA.push(p));
+
+  const joinA = await emitAck(a, 'player:join', { code, nickname: 'Rea' });
+  assert.ok(joinA.ok, joinA.error);
+  const started = await emitAck(host, 'host:start');
+  assert.ok(started.ok);
+  const total = started.total;
+  assert.equal(total, 5);
+
+  const first = await nextQ(seenA, 0);
+  assert.ok(first.question.id, 'the live question carries its bank id');
+  assert.ok((await emitAck(a, 'player:answer', { qIndex: 0, answer: answerFor(first.question) })).ok);
+
+  // the student drops off - the seat stays, with their rank on the board
+  a.disconnect();
+  const away = await waitEvent(host, 'roster', 8000,
+    (p) => p.players.some((x) => x.id === joinA.playerId && x.status === 'disconnected'));
+  const seat = away.players.find((x) => x.id === joinA.playerId);
+  assert.ok(seat.rank >= 1, 'a disconnected student keeps their rank on the board');
+  assert.equal(typeof seat.score, 'number', 'their score is still reported');
+
+  // ...and the saved playerId puts them straight back into it
+  const b = await newSocket();
+  const seenB = [];
+  b.on('question:start', (p) => seenB.push(p));
+  const joinB = await emitAck(b, 'player:join', { code, nickname: 'Rea', playerId: joinA.playerId });
+  assert.ok(joinB.ok, joinB.error);
+  assert.equal(joinB.playerId, joinA.playerId, 'same student, same seat');
+  assert.ok(joinB.rebind, 'the reply marks it a rebind, not a brand new join');
+  assert.equal(joinB.players, 1, 'no duplicate player was created');
+  const back = joinB.leaderboard.entries.find((e) => e.id === joinA.playerId);
+  assert.ok(back, 'they are still on the leaderboard after the drop');
+  assert.equal(back.correct + back.wrong, 1, 'their answers came with them');
+
+  // they land back on the question they were on, already answered
+  const review = await nextQ(seenB, 0);
+  assert.equal(review.qIndex, 0);
+  assert.ok(review.review, 'the question they left comes back as a read-only review');
+  assert.equal(review.question.id, first.question.id, 'the very same question, not a new one');
+
+  // walk the rest of the run: one question per index, never the same id twice
+  const ids = [first.question.id];
+  for (let i = 1; i < total; i++) {
+    const want = seenB.length;   // the next slot to fill (the emit can beat the ack)
+    const adv = await emitAck(b, 'player:advance');
+    assert.ok(adv.ok, adv.error);
+    const q = await nextQ(seenB, want);
+    assert.equal(q.qIndex, i, 'questions come up in order, one index at a time');
+    assert.equal(q.refresher, false, 'the run never splices a revision round back in');
+    ids.push(q.question.id);
+    const out = await emitAck(b, 'player:answer', { qIndex: i, answer: answerFor(q.question) });
+    assert.ok(out.ok, out.error);
+  }
+  assert.equal(new Set(ids).size, ids.length, 'no question id is served twice in one run');
+
+  // nothing left to answer: the student finishes, the teacher closes the run
+  const fin = await emitAck(b, 'player:advance');
+  assert.ok(fin.finished, `the last advance finishes the student: ${JSON.stringify(fin)}`);
+  const ended = await emitAck(host, 'host:control', { action: 'end' });
+  assert.ok(ended.ok, ended.error);
+  const report = ended.report;
+  const me = report.players.find((p) => p.nickname === 'Rea');
+  assert.ok(me, 'the returning student is in the report');
+  assert.equal(me.finished, true, 'they finished the run in their own seat');
+  assert.equal(me.log.length, total, 'every question they answered is recorded');
+});
+
+test('a returning student is never blocked by "no late joins"', async () => {
+  const { host, code } = await createSession({ timerOn: false, lateJoin: false });
+  const a = await newSocket();
+  const join = await emitAck(a, 'player:join', { code, nickname: 'Nia' });
+  assert.ok(join.ok, join.error);
+  const q0 = waitEvent(a, 'question:start');
+  assert.ok((await emitAck(host, 'host:start')).ok);
+  await q0;
+  a.disconnect();
+  await waitEvent(host, 'roster', 8000,
+    (p) => p.players.some((x) => x.id === join.playerId && x.status === 'disconnected'));
+
+  // a genuinely new player is still refused...
+  const stranger = await newSocket();
+  const refused = await emitAck(stranger, 'player:join', { code, nickname: 'New' });
+  assert.match(refused.error, /late join/i);
+
+  // ...but the student who was already in gets their seat back
+  const back = await newSocket();
+  const again = await emitAck(back, 'player:join', { code, nickname: 'Nia', playerId: join.playerId });
+  assert.ok(again.ok, again.error);
+  assert.equal(again.playerId, join.playerId, 'the seat was reclaimed, not duplicated');
+  assert.ok(again.rebind);
+  assert.equal(again.players, 1, 'still one player in the room');
 });

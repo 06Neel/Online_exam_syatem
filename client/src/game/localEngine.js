@@ -1,7 +1,7 @@
 // Practice mode engine: runs entirely on the client, same scoring rules as live.
 import { scoreAnswer, marksFor, round2, MARKS_DEFAULT, COSTS_DEFAULT, NEGATIVE_DEFAULT } from '../../../shared/scoring.js';
 import { evaluateBadges, badgeById, ENCOURAGEMENTS } from '../../../shared/badges.js';
-import { chooseRefreshers, timerFor, strengthMap, BAND_INFO, MAX_REFRESHERS_PER_LEVEL } from '../../../shared/quiz.js';
+import { timerFor, strengthMap, BAND_INFO } from '../../../shared/quiz.js';
 import { request } from '../net.js';
 
 export class LocalEngine {
@@ -45,7 +45,6 @@ export class LocalEngine {
       `/api/practice?units=${units.join(',')}&count=${this.config.count || 12}&difficulty=${this.config.difficulty || 'mixed'}`
     );
     this.questions = data.questions;
-    this.pool = data.pool || data.questions;
     return this;
   }
 
@@ -246,24 +245,8 @@ export class LocalEngine {
     return { ok: true, earned };
   }
 
-  /** advance to next question, inserting refresher questions from weak areas */
+  /** advance to the next question (the list is built once - nothing is ever re-inserted) */
   advance() {
-    // insert up to 2 refreshers when crossing a level boundary
-    const nextQ = this.questions[this.index + 1];
-    const cur = this.questions[this.index];
-    if (nextQ && cur && nextQ.unit !== cur.unit) {
-      const picks = chooseRefreshers({
-        bank: this.pool || this.questions,
-        events: this.player.events,
-        currentUnit: nextQ.unit,
-        seen: new Set(this.questions.map((q) => q.id)),
-        limit: MAX_REFRESHERS_PER_LEVEL,
-        seed: 'practice',
-      }).filter((q) => !this.questions.some((x) => x.id === q.id));
-      if (picks.length) {
-        this.questions.splice(this.index + 1, 0, ...picks.map((q) => ({ ...q, refresher: true })));
-      }
-    }
     this.index++;
     if (this.index >= this.questions.length) return this.end();
     this._present();
